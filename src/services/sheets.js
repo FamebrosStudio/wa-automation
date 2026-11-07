@@ -48,6 +48,7 @@ async function initSheets() {
     sheetsClient = google.sheets({ version: 'v4', auth: authClient });
     sheetsAvailable = true;
     console.log('[sheets] Google Sheets connected via WIF');
+    await ensureHeaders();
     return true;
   } catch (err) {
     console.error('[sheets] init error:', err.message);
@@ -147,9 +148,10 @@ async function upsertLead(leadSummary) {
         requestBody: { values: [row] },
       });
     }
+    console.log(`[sheets] Lead saved: ${leadSummary.phone} | ${leadSummary.status}`);
     return { ok: true };
   } catch (err) {
-    // Silently fail - Google Sheets is optional, leads tracked via WhatsApp notifications and logs
+    console.error(`[sheets] Failed to save lead ${leadSummary.phone}: ${err.message}`);
     return { error: err.message };
   }
 }
