@@ -118,3 +118,36 @@ Edit `src/data/knowledge.js`:
 
 MIT
 
+# Firestore
+
+Lead and recent conversation records are stored server-side in Firestore when
+`FIREBASE_SERVICE_ACCOUNT_JSON` is configured. Set `FIREBASE_PROJECT_ID` to
+`wa-automation-famebros-phase-1` (the default). In Vercel, add both as server
+environment variables; add the complete Firebase service-account JSON value
+as a **secret**, for each environment that should use Firestore. Do not commit
+or paste credentials into chat. Create/enable the Firestore database in that
+project and grant the service account the minimum Firestore access needed.
+The included `firestore.rules` denies client access; the app uses Firebase
+Admin SDK on the server. Without the service-account variable, storage remains
+in-memory and is not durable. The Basic-Auth-protected dashboard supports
+search/status filtering, lead details and recent conversation history, internal
+notes, tags, owner assignment, and explicit status saves. Phone numbers are not
+included in the lead-list response; they appear only in authenticated details.
+
+Webhook processing uses Firestore transactionally acquired per-phone leases and
+durable message-ID records when Firestore is configured. Lease contention or
+storage/processing errors return HTTP 503 so Meta can retry. This coordination
+does not make external WhatsApp/Sheets side effects transactional: a process
+crash after sending a reply but before recording the message can result in a
+repeated side effect on retry. Configure Firestore indexes/permissions and
+monitor lease/storage errors before enabling this path in production; this
+change has not been validated against a live Firebase project.
+
+Follow-up automation remains disabled: `/api/cron` returns 503 and no Vercel
+cron is scheduled. It must not be enabled until an approved WhatsApp template,
+template language/name, due-time/opt-out policy, and idempotent delivery
+tracking are implemented and configured. Never send freeform follow-ups
+outside WhatsApp's customer-service window.
+
+Broadcast campaigns, a shared team inbox, and realtime websocket updates are
+not included; treat them as later phases.

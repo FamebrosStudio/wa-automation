@@ -4,9 +4,12 @@ const ai = require('../services/ai');
 const config = require('../config');
 const leads = require('../services/leads');
 const sheets = require('../services/sheets');
+const flow = require('../services/flow');
+const firestore = require('../services/firestore');
 
 const processed = new Set();
 const sessions = new Map();
+const phoneQueues = new Map();
 
 const MENU_ORDER = ['about', 'services', 'process', 'packages', 'clients', 'faq', 'contact', 'human'];
 
@@ -62,7 +65,39 @@ async function notifyTeamQualified(leadSummary) {
   }
 }
 
-async function handleIncoming(message, from) {
+async function startLeadCapture(from) {
+  await whatsapp.text(from, `${flow.startFlow(from)} Type cancel at any time to stop.`);
+}
+
+async function handleFlowText(from, text) {
+  // Interactive option IDs are transport values, not customer message content.
+  if (!/^flow_(budget|timeline)_\d+$/.test(text)) leads.classifyLead(from, text, null);
+  const result = flow.processFlowResponse(from, text);
+  if (!result) return false;
+  leads.addMessage(from, 'assistant', result.reply);
+  if (result.done) {
+    sheets.upsertLead(leads.getLeadSummary(from)).catch(() => {});
+  }
+  await whatsapp.text(from, result.reply);
+  if (result.options?.length) await sendFlowChoices(from, result.step, result.options);
+  if (result.done || result.cancelled) {
+    await whatsapp.buttons(from, { body: 'What would you like to do next?', buttons: [
+      { id: 'menu', title: 'Main Menu' }, { id: 'contact', title: 'Book a Call' }, { id: 'human', title: 'Talk to Human' },
+    ] });
+  }
+  return true;
+}
+
+async function sendFlowChoices(to, step, options) {
+  await whatsapp.list(to, {
+    body: 'Choose an option', button: 'Select',
+    sections: [{ title: step === 'budget' ? 'Monthly budget' : 'Start timeline', rows: options.map((title, index) => ({
+      id: `flow_${step}_${index}`, title,
+    })) }],
+  });
+}
+
+async function handleIncomingInMemory(message, from) {
   if (processed.has(message.id)) return;
   processed.add(message.id);
   cleanupProcessed();
@@ -78,6 +113,19 @@ async function handleIncoming(message, from) {
     if (id) {
       leads.addMessage(from, 'user', `[selected: ${id}]`);
 
+      if (flow.hasActiveFlow(from) && /^flow_(budget|timeline)_\d+$/.test(id)) {
+        await handleFlowText(from, id);
+        return;
+      }
+
+      if (flow.hasActiveFlow(from)) flow.cancelFlow(from);
+
+      if (id === 'contact') {
+        leads.classifyLead(from, id, null);
+        sheets.upsertLead(leads.getLeadSummary(from)).catch(() => {});
+        await startLeadCapture(from);
+        return;
+      }
       let interactionType = null;
       if (id === 'human' || id === 'contact') interactionType = 'human_request';
       const { status, lead } = leads.classifyLead(from, id, interactionType);
@@ -103,6 +151,17 @@ async function handleIncoming(message, from) {
 
     leads.addMessage(from, 'user', text);
 
+    if (flow.hasActiveFlow(from)) {
+      const action = K.matchKeyword(text);
+      if (action === 'menu' || action === 'contact' || action === 'human') flow.cancelFlow(from);
+      else if (/^(cancel|stop)$/i.test(text)) {
+        await handleFlowText(from, text);
+        return;
+      } else {
+        if (await handleFlowText(from, text)) return;
+      }
+    }
+
     const nid = numberToId(text);
     if (nid) {
       let interactionType = null;
@@ -112,12 +171,19 @@ async function handleIncoming(message, from) {
       if (status === leads.STATUS.QUALIFIED) notifyTeamQualified(leads.getLeadSummary(from));
 
       if (nid === 'menu') await sendMenu(from);
+      else if (nid === 'contact') await startLeadCapture(from);
       else await sendReply(from, nid);
       return;
     }
 
     // Enhanced natural language understanding
     const kw = K.matchKeyword(text);
+    if (kw === 'contact') {
+      leads.classifyLead(from, text, null);
+      sheets.upsertLead(leads.getLeadSummary(from)).catch(() => {});
+      await startLeadCapture(from);
+      return;
+    }
     if (kw === 'menu') {
       leads.classifyLead(from, text, null);
       sheets.upsertLead(leads.getLeadSummary(from)).catch(() => {});
@@ -145,18 +211,12 @@ async function handleIncoming(message, from) {
 
         await whatsapp.text(from, reply);
 
-        const lead = leads.getLead(from);
-        const followUp = ai.getFollowUp(lead.interests, lead.messageCount);
         const buttons = [
           { id: 'menu', title: 'Main Menu' },
           { id: 'contact', title: 'Book a Call' },
           { id: 'human', title: 'Talk to Human' },
         ];
-        if (followUp) {
-          await whatsapp.buttons(from, { body: followUp, buttons });
-        } else {
-          await whatsapp.buttons(from, { body: 'What next?', buttons });
-        }
+        await whatsapp.buttons(from, { body: 'What next?', buttons });
         return;
       }
     }
@@ -178,6 +238,46 @@ async function handleIncoming(message, from) {
     "I can currently read text messages only. Please type your question or choose from the menu below."
   );
   await sendMenu(from);
+}
+
+async function handleIncoming(message, from) {
+  const firestoreEnabled = firestore.isConfigured();
+  const previous = phoneQueues.get(from) || Promise.resolve();
+  const task = previous.catch(() => {}).then(async () => {
+    const releaseLease = firestoreEnabled ? await firestore.acquirePhoneLease(from) : null;
+    try {
+      if (releaseLease) await releaseLease.assertOwnership();
+      if (firestoreEnabled && message.id && await firestore.hasProcessedMessage(message.id)) return;
+      const record = firestoreEnabled ? await firestore.getLeadByPhone(from) : null;
+      if (releaseLease) await releaseLease.assertOwnership();
+      if (record) {
+        leads.restoreOne(record);
+        flow.restoreFlow(from, record.activeFlow);
+      }
+      const result = await handleIncomingInMemory(message, from);
+      if (releaseLease) await releaseLease.assertOwnership();
+      if (firestoreEnabled) {
+        const current = leads.snapshot(from)[0];
+        if (current) {
+          if (releaseLease) await releaseLease.assertOwnership();
+          await firestore.saveLead({ ...current, activeFlow: flow.snapshotFlow(from) });
+        }
+      }
+      if (firestoreEnabled && message.id) {
+        if (releaseLease) await releaseLease.assertOwnership();
+        await firestore.markMessageProcessed(message.id, from);
+      }
+      return result;
+    } finally {
+      if (releaseLease) await releaseLease();
+    }
+  });
+  phoneQueues.set(from, task);
+  try {
+    return await task;
+  } finally {
+    if (phoneQueues.get(from) === task) phoneQueues.delete(from);
+  }
 }
 
 module.exports = { handleIncoming, sendMenu, sendReply };
