@@ -163,7 +163,7 @@ async function handleIncoming(message, from) {
     sheets.upsertLead(leads.getLeadSummary(from)).catch(() => {});
     await whatsapp.text(
       from,
-      "I am not sure I understood that. Let me show you our main menu so you can pick what interests you."
+      "Hmm, I am not quite sure what you mean. Let me show you the options so you can pick what interests you."
     );
     await sendMenu(from);
     return;

@@ -2,127 +2,90 @@ const config = require('../config');
 
 const B = config.business;
 
-const WELCOME = `Hi! Welcome to ${B.name}.
+const WELCOME = `Hey! Welcome to ${B.name}. We're a social media and content agency in Mumbai helping businesses grow with strategy, content, influencers, and ads.
 
-We're Mumbai's leading social media and content agency. We help businesses grow with strategy, content, influencers, and ads.
+How can I help you?`;
 
-How can I help you today?`;
+const ABOUT = `We're a social media marketing and content agency based in Mumbai. We combine strategy, creativity, and performance marketing to grow real businesses.
 
-const ABOUT = `About ${B.name}
+We've managed 50+ businesses, work with 500+ creators, and have a 25-person in-house team. Most of our clients come through referrals.
 
-${B.name} is a social media marketing and content production agency based in ${B.address}. We combine strategy, creativity, and performance marketing to grow real businesses, not just follower counts.
+Want to know more about our services or packages?`;
 
-By the numbers:
-- 50+ businesses managed
-- 80% new clients via referrals
-- 500+ creators in our network
-- 25-person in-house team
-- 300%+ avg organic reach
-- 4.5X inbound leads
-- 4.5X avg campaign ROAS
+const SERVICES = `We offer everything under one roof:
 
-Our mission: Great businesses deserve to be seen. We give local businesses the content strategy, production quality, and marketing systems national brands use.
-
-Location: ${B.address}
-Phone: ${B.phone}
-Email: ${B.email}`;
-
-const SERVICES = `Our Services (all under one roof)
-
-1. Social Media Management and Marketing
-2. Content and Reel Production (50+ reels per month)
+1. Social Media Management
+2. Content and Reel Production (50+ reels/month)
 3. Influencer Marketing (500+ creators)
-4. Meta Ads and Performance Marketing
+4. Meta Ads / Performance Marketing
 5. Brand and Commercial Shoots
 6. SEO and Local Growth
-7. Website Design and Development
+7. Website Design
 
-Every piece of content is tied to a business goal - enquiries, footfall, or sales.`;
+Everything we do is tied to business goals - enquiries, footfall, or sales. Which one interests you?`;
 
-const PROCESS = `How We Grow Your Business (5 steps)
+const PROCESS = `How we work:
 
-1. Discovery Call - understand your business, audience, and goals
-2. Custom Strategy - tailored content and marketing plan
-3. Content Production - in-house shoots, edits, reels
-4. Publish and Amplify - posting plus influencers plus ads
-5. Measure and Optimise - monthly reporting and optimisation
+1. Discovery call - understand your business and goals
+2. Custom strategy - tailored content and marketing plan
+3. Content production - in-house shoots and edits
+4. Publish and amplify - posting, influencers, ads
+5. Measure and optimise - monthly reporting
 
-Strategy to Content to Social Media to Influencer to Meta Ads`;
+Strategy to content to social media to influencer to Meta Ads. Want to see case studies?`;
 
-const CLIENTS = `Brands We Have Worked With
+const CLIENTS = `We've worked with brands like Audi, Cadbury, Netflix, Samsung, Flipkart, JioMart, Realme, and many local Mumbai businesses - salons, restaurants, jewellers, architects.
 
-Audi, Cadbury, Netflix, Samsung, Flipkart, Meta, JioMart, Realme, Filmfare, Red Chillies Entertainment, Baskin Robbins, Cello Writing, Indian Idol, Laughter Chefs, and many local Mumbai brands (salons, restaurants, jewellers, furniture, architects).
+Clients have seen 10X more inquiries, 600K+ followers, and 4.5X campaign ROAS.
 
-Results clients have seen:
-- 10X more inquiries
-- 600K+ followers
-- 10K followers in 1 month
-- 4.5X campaign ROAS`;
+Want to hear about a specific industry we've worked in?`;
 
-const PACKAGES = `Our Packages (starting prices, customised per brand)
+const PACKAGES = `Our packages (starting prices, customised per brand):
 
-Starter - from Rs 25,000 per month
-- Social media management (2 platforms)
-- 8 reels plus posts per month
-- Monthly content calendar
-- Basic performance report
+Starter - Rs 25,000/mo
+2 platforms, 8 reels + posts, monthly calendar, basic report
 
-Growth - from Rs 45,000 per month (Most popular)
-- 3 platforms managed
-- 15 reels plus posts per month
-- Influencer collaborations (2-3 per month)
-- Meta Ads management (ad spend separate)
-- Monthly strategy call
+Growth - Rs 45,000/mo (most popular)
+3 platforms, 15 reels + posts, 2-3 influencer collabs, Meta Ads, monthly strategy call
 
-Premium - from Rs 85,000 per month
-- Full-service: content plus influencers plus ads
-- 25+ reels per month plus brand shoots
-- Dedicated account manager
-- Advanced analytics and ROAS tracking
+Premium - Rs 85,000/mo
+Full service: content + influencers + ads, 25+ reels, brand shoots, dedicated manager
 
 Paid Trial Shoot - one-time
-- Concept, scripting, direction, edited reels
-- Try us before committing to a retainer
+Concept to edited reels, try before committing
 
-All packages are customised after a discovery call. Final pricing depends on scope, platforms, and ad spend.`;
+All customised after a discovery call. Which one sounds interesting?`;
 
-const FAQ = `Frequently Asked Questions
+const FAQ = `Common questions:
 
-Q: What services do you offer?
-A: Social media management, content and reel production, influencer marketing, Meta Ads, brand shoots, performance marketing - all under one roof.
+What services? Social media, content/reels, influencers, Meta Ads, brand shoots, SEO - all under one roof.
 
-Q: Do you work with small local businesses?
-A: Yes! We work with salons, restaurants, jewellers, furniture stores, architects and more across Mumbai and Pan-India.
+Small businesses? Yes! We work with salons, restaurants, jewellers, and more across Mumbai and Pan-India.
 
-Q: How long before results?
-A: Organic growth compounds over months. Paid campaigns can show leads within weeks. We report monthly with real numbers.
+How long for results? Organic growth compounds over months. Paid campaigns show leads within weeks. Monthly reporting.
 
-Q: Do you offer a trial?
-A: Yes - our Paid Trial Shoot lets you experience our production quality before committing.
+Trial? Yes - our Paid Trial Shoot lets you experience our quality first.
 
-Q: Where are you based?
-A: Mulund West, Mumbai - 400080. We serve clients Pan-India (Mumbai, Hyderabad, Dubai and more).`;
+Based in Mulund West, Mumbai. Serving Pan-India.
 
-const CONTACT = `Let us grow your business together
+Anything else you'd like to know?`;
 
-The fastest way to reach us:
+const CONTACT = `Best way to reach us:
 WhatsApp: ${B.whatsappLink}
 Phone: ${B.phone}
 Email: ${B.email}
 Address: ${B.address}
 
-Or fill our enquiry form on the website and we will come back with a strategy that works.
+Or fill our enquiry form and we'll come back with a strategy.
 
-Would you like to book a free discovery call?`;
+Want to book a free discovery call?`;
 
-const HUMAN = `I will connect you with our team shortly.
+const HUMAN = `I'll connect you with our team. A member will get back to you shortly.
 
-In the meantime, you can reach us directly:
-WhatsApp: ${B.whatsappLink}
+In the meantime, reach us at:
 Phone: ${B.phone}
 Email: ${B.email}
-
-A team member will get back to you as soon as possible.`;
+WhatsApp: ${B.whatsappLink}`;
 
 const MAIN_MENU = {
   header: `${B.name}`,
@@ -133,16 +96,16 @@ const MAIN_MENU = {
     {
       title: 'Learn About Us',
       rows: [
-        { id: 'about', title: 'About Us', description: 'Who we are and our mission' },
+        { id: 'about', title: 'About Us', description: 'Who we are' },
         { id: 'services', title: 'Our Services', description: 'What we do' },
-        { id: 'process', title: 'Our Process', description: 'How we grow your business' },
+        { id: 'process', title: 'Our Process', description: 'How we work' },
       ],
     },
     {
       title: 'Packages and Proof',
       rows: [
         { id: 'packages', title: 'Packages and Pricing', description: 'Starter, Growth, Premium' },
-        { id: 'clients', title: 'Case Studies and Clients', description: 'Brands and results' },
+        { id: 'clients', title: 'Case Studies', description: 'Brands and results' },
         { id: 'faq', title: 'FAQs', description: 'Common questions' },
       ],
     },
@@ -181,11 +144,9 @@ const KEYWORD_MAP = [
 
 function matchKeyword(text) {
   const t = text.toLowerCase().trim();
-  // Direct keyword match
   for (const { keys, id } of KEYWORD_MAP) {
     if (keys.some((k) => t.includes(k))) return id;
   }
-  // Fuzzy: check if any word in the message matches a keyword
   const words = t.split(/\s+/);
   for (const { keys, id } of KEYWORD_MAP) {
     for (const word of words) {
