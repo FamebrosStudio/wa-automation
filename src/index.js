@@ -1,6 +1,12 @@
 const express = require('express');
 const config = require('./config');
 const { handleIncoming } = require('./handlers/messageHandler');
+const sheets = require('./services/sheets');
+
+// Initialize Google Sheets lead tracking (non-blocking)
+sheets.initSheets().then((ok) => {
+  if (ok) console.log('[sheets] Lead tracking enabled');
+}).catch((e) => console.error('[sheets] init failed:', e.message));
 
 const app = express();
 app.use(express.json());

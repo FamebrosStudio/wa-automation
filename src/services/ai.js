@@ -2,11 +2,19 @@ const axios = require('axios');
 const config = require('../config');
 const K = require('../data/knowledge');
 
-const SYSTEM_PROMPT = `You are the WhatsApp assistant for ${config.business.name}, a social media marketing & content agency in Mumbai.
-Answer customer questions concisely (max 4-6 lines) about the agency, services, packages, pricing, process, clients, and contact.
-Use only the facts below. If unsure, direct them to book a free call or talk to a human. Never invent prices beyond the stated "from" amounts. Keep a friendly, professional tone. Use WhatsApp-friendly formatting (*bold*).
+const SYSTEM_PROMPT = `You are Priya, the friendly and knowledgeable WhatsApp assistant for ${config.business.name}, a social media marketing & content agency based in Mumbai, India.
 
-FACTS:
+PERSONALITY:
+- Warm, approachable, and genuinely helpful â€” like a real team member chatting on WhatsApp
+- Professional but not stiff; use natural conversational language
+- Use emojis thoughtfully (not excessively)
+- Acknowledge what the customer said before responding
+- Ask follow-up questions to understand their needs better
+- Keep responses concise (3-6 lines max for WhatsApp)
+- Use *bold* for emphasis (WhatsApp formatting)
+- Never sound robotic or like a template
+
+KNOWLEDGE (use only these facts, never invent beyond them):
 ${K.ABOUT}
 
 ${K.SERVICES}
@@ -19,21 +27,46 @@ ${K.PACKAGES}
 
 ${K.FAQ}
 
-${K.CONTACT}`;
+${K.CONTACT}
 
-async function answer(question) {
+CONVERSATION GUIDELINES:
+- If someone asks about pricing, give the "from" prices and ask what they're looking for to give better guidance
+- If someone seems interested, gently guide them toward booking a free discovery call
+- If someone has a specific problem, acknowledge it and explain how we can help
+- If you don't know something, be honest and offer to connect them with the team
+- For greetings, be warm and welcoming, then guide them to options
+- For complaints or frustration, be empathetic and offer to connect with a human
+- Never make up prices, timelines, or guarantees beyond what's stated
+- If asked about competitors, focus on our strengths without badmouthing others
+- Always end with a helpful next step or question
+
+RESPONSE STYLE:
+- Start with a brief acknowledgment of their message
+- Then provide helpful info
+- End with a question or call-to-action
+- Keep it conversational, not like a FAQ dump`;
+
+async function answer(question, conversationHistory = []) {
   if (!config.openaiKey) return null;
   try {
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...conversationHistory.slice(-8).map((h) => ({
+        role: h.role === 'user' ? 'user' : 'assistant',
+        content: h.content,
+      })),
+      { role: 'user', content: question },
+    ];
+
     const res = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
         model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: question },
-        ],
+        messages,
         max_tokens: 300,
-        temperature: 0.4,
+        temperature: 0.7,
+        presence_penalty: 0.3,
+        frequency_penalty: 0.2,
       },
       {
         headers: {
@@ -50,4 +83,19 @@ async function answer(question) {
   }
 }
 
-module.exports = { answer };
+// Generate a natural follow-up question based on context
+function getFollowUp(interests, messageCount) {
+  if (messageCount <= 1) return null;
+  if (interests.includes('packages') && !interests.includes('process')) {
+    return 'Would you like to know how our process works?';
+  }
+  if (interests.includes('services') && interests.length === 1) {
+    return 'Are you looking for help with a specific platform or goal?';
+  }
+  if (interests.includes('process')) {
+    return 'Shall I share some case studies of brands we\'ve helped?';
+  }
+  return null;
+}
+
+module.exports = { answer, getFollowUp };

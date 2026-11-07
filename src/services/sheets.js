@@ -1,0 +1,134 @@
+const config = require('../config');
+
+// Google Sheets integration for lead tracking
+// Requires: GOOGLE_SHEETS_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_KEY
+
+let sheetsClient = null;
+let sheetsAvailable = false;
+
+async function initSheets() {
+  if (sheetsAvailable) return true;
+  const sheetId = process.env.GOOGLE_SHEETS_ID;
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!sheetId || !email || !key) {
+    console.warn('[sheets] Google Sheets not configured; leads stored in memory only');
+    return false;
+  }
+  try {
+    const { google } = require('googleapis');
+    const auth = new google.auth.JWT(email, null, key.replace(/\\n/g, '\n'), [
+      'https://www.googleapis.com/auth/spreadsheets',
+    ]);
+    sheetsClient = google.sheets({ version: 'v4', auth });
+    sheetsAvailable = true;
+    console.log('[sheets] Google Sheets connected');
+    return true;
+  } catch (err) {
+    console.error('[sheets] init error:', err.message);
+    return false;
+  }
+}
+
+const SHEET_NAME = 'Leads';
+const HEADERS = [
+  'Timestamp', 'Phone', 'Name', 'Status', 'Interests',
+  'Message Count', 'Human Requested', 'Last Message',
+  'Conversation Summary', 'First Seen', 'Last Seen', 'Notes',
+];
+
+async function ensureHeaders() {
+  if (!sheetsAvailable) return;
+  try {
+    const res = await sheetsClient.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: `${SHEET_NAME}!A1:L1`,
+    });
+    const existing = res.data.values?.[0];
+    if (!existing || existing.length === 0) {
+      await sheetsClient.spreadsheets.values.update({
+        spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+        range: `${SHEET_NAME}!A1:L1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [HEADERS] },
+      });
+    }
+  } catch (err) {
+    // Sheet might not exist; try to create it
+    try {
+      await sheetsClient.spreadsheets.batchUpdate({
+        spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: SHEET_NAME } } }],
+        },
+      });
+      await sheetsClient.spreadsheets.values.update({
+        spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+        range: `${SHEET_NAME}!A1:L1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [HEADERS] },
+      });
+    } catch (e) {
+      console.error('[sheets] ensureHeaders error:', e.message);
+    }
+  }
+}
+
+async function upsertLead(leadSummary) {
+  if (!sheetsAvailable) {
+    if (!(await initSheets())) return { skipped: true };
+    await ensureHeaders();
+  }
+  try {
+    const sheetId = process.env.GOOGLE_SHEETS_ID;
+    // Find existing row by phone
+    const res = await sheetsClient.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `${SHEET_NAME}!A:L`,
+    });
+    const rows = res.data.values || [];
+    let rowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][1] === leadSummary.phone) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+    const row = [
+      new Date().toISOString(),
+      leadSummary.phone,
+      leadSummary.name || '',
+      leadSummary.status,
+      (leadSummary.interests || []).join(', '),
+      leadSummary.messageCount,
+      leadSummary.humanRequested ? 'Yes' : 'No',
+      (leadSummary.conversationSummary || '').slice(0, 500),
+      leadSummary.conversationSummary || '',
+      leadSummary.firstSeen,
+      leadSummary.lastSeen,
+      '',
+    ];
+    if (rowIndex > 0) {
+      await sheetsClient.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${SHEET_NAME}!A${rowIndex}:L${rowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [row] },
+      });
+    } else {
+      await sheetsClient.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range: `${SHEET_NAME}!A:L`,
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [row] },
+      });
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error('[sheets] upsertLead error:', err.message);
+    return { error: err.message };
+  }
+}
+
+module.exports = { initSheets, upsertLead, sheetsAvailable: () => sheetsAvailable };
