@@ -149,7 +149,7 @@ async function upsertLead(leadSummary) {
     }
     return { ok: true };
   } catch (err) {
-    // Silently fail - Google Sheets is optional
+    // Silently fail - Google Sheets is optional, leads tracked via WhatsApp notifications and logs
     return { error: err.message };
   }
 }
