@@ -1,7 +1,14 @@
 const config = require('../config');
 
-// Google Sheets integration for lead tracking
-// Requires: GOOGLE_SHEETS_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_KEY
+// Google Sheets integration via Vercel OIDC Workload Identity Federation
+// No service-account private key needed.
+// Requires (set in Vercel env vars):
+//   GOOGLE_SHEETS_ID
+//   GCP_PROJECT_ID
+//   GCP_PROJECT_NUMBER
+//   GCP_SERVICE_ACCOUNT_EMAIL
+//   GCP_WORKLOAD_IDENTITY_POOL_ID
+//   GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID
 
 let sheetsClient = null;
 let sheetsAvailable = false;
@@ -9,20 +16,38 @@ let sheetsAvailable = false;
 async function initSheets() {
   if (sheetsAvailable) return true;
   const sheetId = process.env.GOOGLE_SHEETS_ID;
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!sheetId || !email || !key) {
-    console.warn('[sheets] Google Sheets not configured; leads stored in memory only');
+  const projectId = process.env.GCP_PROJECT_ID;
+  const projectNumber = process.env.GCP_PROJECT_NUMBER;
+  const serviceAccountEmail = process.env.GCP_SERVICE_ACCOUNT_EMAIL;
+  const poolId = process.env.GCP_WORKLOAD_IDENTITY_POOL_ID;
+  const providerId = process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID;
+
+  if (!sheetId || !projectId || !projectNumber || !serviceAccountEmail || !poolId || !providerId) {
+    console.warn('[sheets] Google Sheets / WIF not configured; leads stored in memory only');
     return false;
   }
+
   try {
+    const { getVercelOidcToken } = require('@vercel/oidc');
+    const { ExternalAccountClient } = require('google-auth-library');
     const { google } = require('googleapis');
-    const auth = new google.auth.JWT(email, null, key.replace(/\\n/g, '\n'), [
-      'https://www.googleapis.com/auth/spreadsheets',
-    ]);
-    sheetsClient = google.sheets({ version: 'v4', auth });
+
+    const audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+
+    const authClient = ExternalAccountClient.fromJSON({
+      type: 'external_account',
+      audience,
+      subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+      token_url: 'https://sts.googleapis.com/v1/token',
+      service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccountEmail}:generateAccessToken`,
+      subject_token_supplier: {
+        getSubjectToken: () => getVercelOidcToken(),
+      },
+    });
+
+    sheetsClient = google.sheets({ version: 'v4', auth: authClient });
     sheetsAvailable = true;
-    console.log('[sheets] Google Sheets connected');
+    console.log('[sheets] Google Sheets connected via WIF');
     return true;
   } catch (err) {
     console.error('[sheets] init error:', err.message);
@@ -54,7 +79,6 @@ async function ensureHeaders() {
       });
     }
   } catch (err) {
-    // Sheet might not exist; try to create it
     try {
       await sheetsClient.spreadsheets.batchUpdate({
         spreadsheetId: process.env.GOOGLE_SHEETS_ID,
@@ -81,7 +105,6 @@ async function upsertLead(leadSummary) {
   }
   try {
     const sheetId = process.env.GOOGLE_SHEETS_ID;
-    // Find existing row by phone
     const res = await sheetsClient.spreadsheets.values.get({
       spreadsheetId: sheetId,
       range: `${SHEET_NAME}!A:L`,
@@ -132,3 +155,4 @@ async function upsertLead(leadSummary) {
 }
 
 module.exports = { initSheets, upsertLead, sheetsAvailable: () => sheetsAvailable };
+EOF
