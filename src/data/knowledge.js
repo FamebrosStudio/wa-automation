@@ -168,21 +168,29 @@ const REPLIES = {
 };
 
 const KEYWORD_MAP = [
-  { keys: ['hi', 'hello', 'hey', 'start', 'menu', 'help'], id: 'menu' },
-  { keys: ['about', 'who are you', 'company', 'agency', 'famebros'], id: 'about' },
-  { keys: ['service', 'what do you do', 'offer', 'reel', 'content', 'social media', 'ads', 'marketing'], id: 'services' },
-  { keys: ['package', 'pricing', 'price', 'cost', 'plan', 'retainer', 'trial shoot', 'trial'], id: 'packages' },
-  { keys: ['process', 'how do you', 'steps', 'workflow'], id: 'process' },
-  { keys: ['client', 'case study', 'portfolio', 'work', 'brand', 'result'], id: 'clients' },
-  { keys: ['faq', 'question'], id: 'faq' },
-  { keys: ['contact', 'call', 'book', 'phone', 'email', 'reach'], id: 'contact' },
-  { keys: ['human', 'agent', 'person', 'team', 'talk to'], id: 'human' },
+  { keys: ['hi', 'hello', 'hey', 'start', 'menu', 'help', 'hii', 'hola', 'namaste'], id: 'menu' },
+  { keys: ['about', 'who are you', 'company', 'agency', 'famebros', 'about you', 'tell me about', 'who is'], id: 'about' },
+  { keys: ['service', 'what do you do', 'offer', 'reel', 'content', 'social media', 'ads', 'marketing', 'what services', 'do you do', 'what can you', 'capabilities'], id: 'services' },
+  { keys: ['package', 'pricing', 'price', 'cost', 'plan', 'retainer', 'trial', 'how much', 'charges', 'fee', 'rates', 'budget'], id: 'packages' },
+  { keys: ['process', 'how do you', 'steps', 'workflow', 'how it works', 'how does it work', 'methodology'], id: 'process' },
+  { keys: ['client', 'case study', 'portfolio', 'work', 'brand', 'result', 'examples', 'previous work', 'who have you'], id: 'clients' },
+  { keys: ['faq', 'question', 'doubt', 'query'], id: 'faq' },
+  { keys: ['contact', 'call', 'book', 'phone', 'email', 'reach', 'get in touch', 'connect', 'reach out'], id: 'contact' },
+  { keys: ['human', 'agent', 'person', 'team', 'talk', 'speak', 'someone', 'real person', 'live chat', 'representative'], id: 'human' },
 ];
 
 function matchKeyword(text) {
-  const t = text.toLowerCase();
+  const t = text.toLowerCase().trim();
+  // Direct keyword match
   for (const { keys, id } of KEYWORD_MAP) {
     if (keys.some((k) => t.includes(k))) return id;
+  }
+  // Fuzzy: check if any word in the message matches a keyword
+  const words = t.split(/\s+/);
+  for (const { keys, id } of KEYWORD_MAP) {
+    for (const word of words) {
+      if (keys.some((k) => k.includes(word) || word.includes(k))) return id;
+    }
   }
   return null;
 }

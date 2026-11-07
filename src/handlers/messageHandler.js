@@ -104,6 +104,7 @@ async function handleIncoming(message, from) {
       return;
     }
 
+    // Enhanced natural language understanding
     const kw = K.matchKeyword(text);
     if (kw === 'menu') {
       leads.classifyLead(from, text, null);
