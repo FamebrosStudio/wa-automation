@@ -169,4 +169,3 @@ async function handleIncoming(message, from) {
 }
 
 module.exports = { handleIncoming, sendMenu, sendReply };
-EOF

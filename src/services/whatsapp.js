@@ -68,4 +68,3 @@ function buttons(to, { body, footer, buttons }) {
 }
 
 module.exports = { send, text, list, buttons };
-EOF

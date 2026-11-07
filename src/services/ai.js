@@ -98,4 +98,3 @@ function getFollowUp(interests, messageCount) {
 }
 
 module.exports = { answer, getFollowUp };
-EOF
