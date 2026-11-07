@@ -139,19 +139,18 @@ const KEYWORD_MAP = [
   { keys: ['client', 'case study', 'portfolio', 'work', 'brand', 'result', 'examples', 'previous work', 'who have you'], id: 'clients' },
   { keys: ['faq', 'question', 'doubt', 'query'], id: 'faq' },
   { keys: ['contact', 'call', 'book', 'phone', 'email', 'reach', 'get in touch', 'connect', 'reach out'], id: 'contact' },
-  { keys: ['human', 'agent', 'person', 'team', 'talk', 'speak', 'someone', 'real person', 'live chat', 'representative'], id: 'human' },
+  { keys: ['human', 'agent', 'person', 'team', 'talk', 'speak', 'someone', 'real person', 'live chat', 'representative', 'talk to a human'], id: 'human' },
 ];
 
 function matchKeyword(text) {
   const t = text.toLowerCase().trim();
+  const contextualSingleWords = new Set(['pricing', 'price', 'cost', 'packages', 'workflow']);
   for (const { keys, id } of KEYWORD_MAP) {
-    if (keys.some((k) => t.includes(k))) return id;
-  }
-  const words = t.split(/\s+/);
-  for (const { keys, id } of KEYWORD_MAP) {
-    for (const word of words) {
-      if (keys.some((k) => k.includes(word) || word.includes(k))) return id;
-    }
+    if (keys.some((key) => {
+      const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (!key.includes(' ') && !contextualSingleWords.has(key)) return t === key;
+      return new RegExp(`(?:^|\\b)${escaped}(?:\\b|$)`, 'i').test(t);
+    })) return id;
   }
   return null;
 }
