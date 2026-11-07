@@ -155,4 +155,3 @@ async function upsertLead(leadSummary) {
 }
 
 module.exports = { initSheets, upsertLead, sheetsAvailable: () => sheetsAvailable };
-EOF
