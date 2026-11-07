@@ -149,7 +149,7 @@ async function upsertLead(leadSummary) {
     }
     return { ok: true };
   } catch (err) {
-    console.error('[sheets] upsertLead error:', err.message);
+    // Silently fail - Google Sheets is optional
     return { error: err.message };
   }
 }
