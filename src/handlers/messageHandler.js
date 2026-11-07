@@ -6,7 +6,7 @@ const leads = require('../services/leads');
 const sheets = require('../services/sheets');
 
 const processed = new Set();
-const sessions = new Map(); // from -> { lastMenu }
+const sessions = new Map();
 
 const MENU_ORDER = ['about', 'services', 'process', 'packages', 'clients', 'faq', 'contact', 'human'];
 
@@ -27,7 +27,6 @@ async function sendReply(to, id) {
   }
   sessions.set(to, { last: id });
   await whatsapp.text(to, body);
-  // quick navigation buttons
   await whatsapp.buttons(to, {
     body: 'What next?',
     buttons: [
@@ -45,7 +44,6 @@ function numberToId(text) {
 }
 
 async function notifyTeamQualified(leadSummary) {
-  // Log qualified lead for team attention
   console.log(`[LEAD:QUALIFIED] ${leadSummary.phone} | interests: ${leadSummary.interests.join(', ')} | msgs: ${leadSummary.messageCount}`);
   if (leadSummary.humanRequested) {
     console.log(`[LEAD:QUALIFIED] User requested human contact - priority follow-up needed`);
@@ -57,7 +55,6 @@ async function handleIncoming(message, from) {
   processed.add(message.id);
   cleanupProcessed();
 
-  // Track conversation for AI context
   const type = message.type;
 
   if (type === 'interactive') {
@@ -69,12 +66,10 @@ async function handleIncoming(message, from) {
     if (id) {
       leads.addMessage(from, 'user', `[selected: ${id}]`);
 
-      // Classify lead based on interaction
       let interactionType = null;
       if (id === 'human' || id === 'contact') interactionType = 'human_request';
       const { status, lead } = leads.classifyLead(from, id, interactionType);
 
-      // Persist to sheets (fire and forget)
       sheets.upsertLead(leads.getLeadSummary(from)).catch(() => {});
 
       if (status === leads.STATUS.QUALIFIED) {
@@ -96,7 +91,6 @@ async function handleIncoming(message, from) {
 
     leads.addMessage(from, 'user', text);
 
-    // number shortcut
     const nid = numberToId(text);
     if (nid) {
       let interactionType = null;
@@ -138,7 +132,6 @@ async function handleIncoming(message, from) {
 
         await whatsapp.text(from, reply);
 
-        // Smart follow-up
         const lead = leads.getLead(from);
         const followUp = ai.getFollowUp(lead.interests, lead.messageCount);
         const buttons = [
@@ -155,12 +148,12 @@ async function handleIncoming(message, from) {
       }
     }
 
-    // Fallback
+    // Fallback - conversational, not template-like
     const { status } = leads.classifyLead(from, text, null);
     sheets.upsertLead(leads.getLeadSummary(from)).catch(() => {});
     await whatsapp.text(
       from,
-      "I'm not sure I understood that. Ã°Å¸Â¤â€\n\nHere's our main menu Ã¢â‚¬â€ pick an option and I'll help you out!"
+      "I am not sure I understood that. Let me show you our main menu so you can pick what interests you."
     );
     await sendMenu(from);
     return;
@@ -169,9 +162,10 @@ async function handleIncoming(message, from) {
   // non-text
   await whatsapp.text(
     from,
-    "I can currently read text messages only. Please type your question or choose from the menu below. Ã°Å¸â€˜â€¡"
+    "I can currently read text messages only. Please type your question or choose from the menu below."
   );
   await sendMenu(from);
 }
 
 module.exports = { handleIncoming, sendMenu, sendReply };
+EOF

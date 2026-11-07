@@ -14,7 +14,7 @@ async function send(payload) {
     const res = await axios.post(url, payload, {
       headers: {
         Authorization: `Bearer ${config.whatsappToken}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
       },
     });
     return res.data;
@@ -68,3 +68,4 @@ function buttons(to, { body, footer, buttons }) {
 }
 
 module.exports = { send, text, list, buttons };
+EOF
