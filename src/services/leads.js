@@ -84,38 +84,38 @@ function classifyLead(phone, message, interactionType) {
   // Qualification logic
   let newStatus = lead.status;
 
-  // 1. Explicit human request â†’ Qualified (highest priority)
+  // 1. Explicit human request ' Qualified (highest priority)
   if (interactionType === 'human_request' || /\b(talk to (a )?human|speak (to|with) (a )?(person|agent|team|someone)|connect me|real person|live agent)\b/i.test(text)) {
     newStatus = STATUS.QUALIFIED;
     lead.humanRequested = true;
   }
 
-  // 2. Booking/call request â†’ Qualified
+  // 2. Booking/call request ' Qualified
   if (/\b(book|schedule|call|meeting|appointment|consultation|demo|quote|proposal)\b/i.test(text) && /\b(free|discovery|call|meeting|appointment)\b/i.test(text)) {
     newStatus = STATUS.QUALIFIED;
   }
 
-  // 3. Sharing business details + clear intent â†’ Qualified
+  // 3. Sharing business details + clear intent ' Qualified
   if (lead.business && lead.messageCount >= 3 && lead.interests.length >= 2) {
     newStatus = STATUS.QUALIFIED;
   }
 
-  // 4. High engagement (4+ messages with interest) â†’ Qualified
+  // 4. High engagement (4+ messages with interest) ' Qualified
   if (lead.messageCount >= 4 && lead.interests.length >= 2) {
     newStatus = STATUS.QUALIFIED;
   }
 
-  // 5. Explicit decline â†’ Non-qualified
+  // 5. Explicit decline ' Non-qualified
   if (/\b(no thanks|not interested|just browsing|just looking|no need|don't need|stop|unsubscribe|leave me alone)\b/i.test(text)) {
     newStatus = STATUS.NON_QUALIFIED;
   }
 
-  // 6. Spam/irrelevant â†’ Non-qualified
+  // 6. Spam/irrelevant ' Non-qualified
   if (/\b(viagra|casino|crypto scam|lottery|winner|click here|free money)\b/i.test(text)) {
     newStatus = STATUS.NON_QUALIFIED;
   }
 
-  // 7. Interest shown but no human request â†’ Non-confirmed (default for engaged users)
+  // 7. Interest shown but no human request ' Non-confirmed (default for engaged users)
   if (newStatus === lead.status && lead.interests.length > 0 && lead.messageCount >= 2) {
     newStatus = STATUS.NON_CONFIRMED;
   }

@@ -48,14 +48,17 @@ async function notifyTeamQualified(leadSummary) {
   if (leadSummary.humanRequested) {
     console.log(`[LEAD:QUALIFIED] User requested human contact - priority follow-up needed`);
   }
-  // Send WhatsApp notification to admin if configured
-  if (config.adminPhone) {
+  // Send WhatsApp notification to admin if configured and different from business phone
+  const businessPhone = (config.business.phone || '').replace(/[^0-9]/g, '');
+  if (config.adminPhone && config.adminPhone !== businessPhone) {
     const msg = `New qualified lead!\nPhone: ${leadSummary.phone}\nStatus: ${leadSummary.status}\nInterests: ${leadSummary.interests.join(', ') || 'none'}\nMessages: ${leadSummary.messageCount}\nHuman requested: ${leadSummary.humanRequested ? 'Yes' : 'No'}\nLast message: ${(leadSummary.conversationSummary || '').slice(0, 200)}`;
     try {
       await whatsapp.text(config.adminPhone, msg);
     } catch (e) {
       console.error('[notify] Failed to send admin notification:', e.message);
     }
+  } else {
+    console.log(`[LEAD:QUALIFIED] ${leadSummary.phone} | ${leadSummary.status} | interests: ${leadSummary.interests.join(', ') || 'none'} | msgs: ${leadSummary.messageCount} | human: ${leadSummary.humanRequested ? 'Yes' : 'No'}`);
   }
 }
 
