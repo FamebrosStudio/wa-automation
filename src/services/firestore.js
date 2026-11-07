@@ -4,22 +4,64 @@ let dbPromise;
 const LEASE_MS = 10 * 60 * 1000;
 
 function isConfigured() {
-  return Boolean(config.firebaseProjectId && config.firebaseServiceAccountJson);
+  const hasServiceAccountKey = Boolean(config.firebaseServiceAccountJson);
+  const hasWorkloadIdentity = Boolean(
+    process.env.GCP_PROJECT_NUMBER &&
+    process.env.GCP_SERVICE_ACCOUNT_EMAIL &&
+    process.env.GCP_WORKLOAD_IDENTITY_POOL_ID &&
+    process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID
+  );
+  return Boolean(config.firebaseProjectId && (hasServiceAccountKey || hasWorkloadIdentity));
 }
 
 async function database() {
   if (!isConfigured()) return null;
   if (!dbPromise) {
     dbPromise = (async () => {
-      let credentials;
-      try {
-        credentials = JSON.parse(config.firebaseServiceAccountJson);
-      } catch (_) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON');
-      }
       const admin = require('firebase-admin');
+      let credential;
+      if (config.firebaseServiceAccountJson) {
+        let credentials;
+        try {
+          credentials = JSON.parse(config.firebaseServiceAccountJson);
+        } catch (_) {
+          throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON');
+        }
+        credential = admin.credential.cert(credentials);
+      } else {
+        const { getVercelOidcToken } = require('@vercel/oidc');
+        const { ExternalAccountClient } = require('google-auth-library');
+        const projectNumber = process.env.GCP_PROJECT_NUMBER;
+        const serviceAccountEmail = process.env.GCP_SERVICE_ACCOUNT_EMAIL;
+        const poolId = process.env.GCP_WORKLOAD_IDENTITY_POOL_ID;
+        const providerId = process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID;
+        const audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+        const authClient = ExternalAccountClient.fromJSON({
+          type: 'external_account',
+          audience,
+          subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+          token_url: 'https://sts.googleapis.com/v1/token',
+          service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccountEmail}:generateAccessToken`,
+          subject_token_supplier: {
+            getSubjectToken: () => getVercelOidcToken(),
+          },
+        });
+        if (!authClient) throw new Error('Unable to initialize Vercel Workload Identity Federation');
+
+        // Firebase Admin accepts the same token-provider contract as its own credentials.
+        // This keeps the OIDC exchange keyless and lets google-auth-library refresh tokens.
+        credential = {
+          async getAccessToken() {
+            const { token } = await authClient.getAccessToken();
+            const expiry = authClient.credentials?.expiry_date;
+            const expiresIn = expiry ? Math.max(0, Math.floor((expiry - Date.now()) / 1000)) : 3600;
+            if (!token) throw new Error('Vercel Workload Identity returned no Google access token');
+            return { access_token: token, expires_in: expiresIn };
+          },
+        };
+      }
       const app = admin.apps.find((candidate) => candidate.name === 'wa-automation') || admin.initializeApp({
-        credential: admin.credential.cert(credentials),
+        credential,
         projectId: config.firebaseProjectId,
       }, 'wa-automation');
       return app.firestore();

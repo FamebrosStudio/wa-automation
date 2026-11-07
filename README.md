@@ -121,15 +121,18 @@ MIT
 # Firestore
 
 Lead and recent conversation records are stored server-side in Firestore when
-`FIREBASE_SERVICE_ACCOUNT_JSON` is configured. Set `FIREBASE_PROJECT_ID` to
-`wa-automation-famebros-phase-1` (the default). In Vercel, add both as server
-environment variables; add the complete Firebase service-account JSON value
-as a **secret**, for each environment that should use Firestore. Do not commit
-or paste credentials into chat. Create/enable the Firestore database in that
-project and grant the service account the minimum Firestore access needed.
+`FIREBASE_PROJECT_ID` and Google credentials are configured. The preferred Vercel
+authentication is keyless Workload Identity Federation, using the existing
+`GCP_PROJECT_NUMBER`, `GCP_SERVICE_ACCOUNT_EMAIL`,
+`GCP_WORKLOAD_IDENTITY_POOL_ID`, and `GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID`
+variables. Grant that service account `roles/datastore.user` on the Firebase
+project. `FIREBASE_SERVICE_ACCOUNT_JSON` remains an optional legacy/local
+fallback; do not create or store a private key when organization policy blocks
+keys. Do not commit or paste credentials into chat. The database is in
+`asia-south1` in project `wa-automation-famebros-phase-1`.
 The included `firestore.rules` denies client access; the app uses Firebase
-Admin SDK on the server. Without the service-account variable, storage remains
-in-memory and is not durable. The Basic-Auth-protected dashboard supports
+Admin SDK on the server. Without valid credentials, storage remains in-memory
+and is not durable. The Basic-Auth-protected dashboard supports
 search/status filtering, lead details and recent conversation history, internal
 notes, tags, owner assignment, and explicit status saves. Phone numbers are not
 included in the lead-list response; they appear only in authenticated details.
