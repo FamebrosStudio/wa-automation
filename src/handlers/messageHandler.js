@@ -256,9 +256,17 @@ async function handleIncoming(message, from) {
       // If durable storage is configured but unavailable, the bot cannot
       // safely distinguish a first-time sender from an existing contact.
       if (storageUnavailable) return { ignored: true, reason: 'contact-history-unavailable' };
-      if (releaseLease) await releaseLease.assertOwnership();
-      if (firestoreEnabled && message.id && await firestore.hasProcessedMessage(message.id)) return;
-      const record = firestoreEnabled ? await firestore.getLeadByPhone(from) : null;
+      let record = null;
+      if (firestoreEnabled) {
+        // These independent point reads share a network round trip instead of
+        // adding duplicate-check latency ahead of every WhatsApp reply.
+        const [alreadyProcessed, storedRecord] = await Promise.all([
+          message.id ? firestore.hasProcessedMessage(message.id) : false,
+          firestore.getLeadByPhone(from),
+        ]);
+        if (alreadyProcessed) return;
+        record = storedRecord;
+      }
       if (releaseLease) await releaseLease.assertOwnership();
       const knownContact = Boolean(record || leads.snapshot(from).length);
       if (record) {
