@@ -70,7 +70,7 @@ function dashboardAuth(req, res, next) {
   next();
 }
 
-const LEAD_STATUSES = require('./services/crm-policy').STATUSES;
+const LEAD_STATUSES = ['Qualified', 'Non-confirmed', 'Non-qualified'];
 function normalizeLeadStatus(lead) {
   if (lead && !LEAD_STATUSES.includes(lead.status)) lead.status = null;
   return lead;
@@ -97,8 +97,6 @@ app.get('/leads/:id', dashboardAuth, async (req, res) => {
 app.patch('/leads/:id', dashboardAuth, async (req, res) => {
   if (!safeRecordId(req.params.id)) return res.sendStatus(400);
   const { status, notes, tags, owner, contactType, botPaused, humanTakeover } = req.body || {};
-  if (contactType !== undefined && !['New Lead', 'Existing Client', 'Past Client', 'Employee', 'Vendor', 'Partner', 'Unknown'].includes(contactType)) return res.status(400).json({ error: 'Invalid contact type' });
-  if ([botPaused, humanTakeover].some(value => value !== undefined && typeof value !== 'boolean')) return res.status(400).json({ error: 'Pause controls must be boolean' });
   if (status !== undefined && !LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid lead status' });
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > 5000)) return res.status(400).json({ error: 'Notes must be text up to 5000 characters' });
   if (owner !== undefined && (typeof owner !== 'string' || owner.length > 120)) return res.status(400).json({ error: 'Owner must be text up to 120 characters' });
@@ -118,12 +116,6 @@ app.patch('/leads/:id', dashboardAuth, async (req, res) => {
     if (owner !== undefined) crm.owner = owner.trim();
     if (tags !== undefined) crm.tags = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
     if (status !== undefined) record.lead.status = status;
-    if (status === 'Won' || status === 'Existing Client') {
-      crm.contactType = 'Existing Client';
-      crm.botPaused = true;
-      record.lead.automationEligible = false;
-    }
-    if (status === 'Lost') { crm.botPaused = true; record.lead.automationEligible = false; }
     if (firestore.isConfigured()) await firestore.save([{ ...record, crm }]);
     else {
       record.crm = crm;

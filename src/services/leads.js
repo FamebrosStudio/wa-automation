@@ -1,5 +1,5 @@
 const config = require('../config');
-const CRM_STATUSES = require('./crm-policy').STATUSES;
+const CRM_STATUSES = ['Qualified', 'Non-confirmed', 'Non-qualified'];
 
 const STATUS = {
   QUALIFIED: 'Qualified',
