@@ -112,7 +112,19 @@ async function handleIncomingInMemory(message, from) {
   cleanupProcessed();
 
   const lead = leads.getLead(from);
-  const firstMessage = !lead.welcomeSent;
+  const conversationHistory = leads.getHistory ? leads.getHistory(from) : [];
+  // A contact is only "first message" if they have never been welcomed AND
+  // have no prior conversation history, service, or activity. This prevents
+  // welcome messages from being re-sent to existing or handled contacts.
+  const hasPriorActivity = Boolean(
+    lead.welcomeSent ||
+    lead.messageCount > 0 ||
+    lead.service ||
+    lead.name ||
+    lead.business ||
+    (conversationHistory || []).length > 0
+  );
+  const firstMessage = !hasPriorActivity;
   if (firstMessage) {
     leads.updateLead(from, { welcomeSent: true });
     await sendMenu(from);
