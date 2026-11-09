@@ -237,6 +237,7 @@ async function handleIncomingInMemory(message, from) {
 
 async function handleIncoming(message, from) {
   let firestoreEnabled = firestore.isConfigured();
+  let storageUnavailable = false;
   const previous = phoneQueues.get(from) || Promise.resolve();
   const task = previous.catch(() => {}).then(async () => {
     let releaseLease = null;
@@ -244,24 +245,41 @@ async function handleIncoming(message, from) {
       try {
         releaseLease = await firestore.acquirePhoneLease(from);
       } catch (error) {
-        // Keep customer replies working during a Firestore/WIF outage. State is
-        // temporary until persistence is restored, but webhook delivery should
-        // not fail before the bot can respond.
-        console.error('[firestore] unavailable; processing this message in memory:', error.message);
+        // Fail closed: without durable history, a serverless instance cannot
+        // know whether this is an existing contact that must remain silent.
+        console.error('[firestore] unavailable; cannot verify contact history:', error.message);
         firestoreEnabled = false;
+        storageUnavailable = true;
       }
     }
     try {
+      // If durable storage is configured but unavailable, the bot cannot
+      // safely distinguish a first-time sender from an existing contact.
+      if (storageUnavailable) return { ignored: true, reason: 'contact-history-unavailable' };
       if (releaseLease) await releaseLease.assertOwnership();
       if (firestoreEnabled && message.id && await firestore.hasProcessedMessage(message.id)) return;
       const record = firestoreEnabled ? await firestore.getLeadByPhone(from) : null;
       if (releaseLease) await releaseLease.assertOwnership();
+      const knownContact = Boolean(record || leads.snapshot(from).length);
       if (record) {
         leads.restoreOne(record);
         leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
         flow.restoreFlow(from, record.activeFlow);
       }
-      const result = await handleIncomingInMemory(message, from);
+      // Existing conversations stay silent unless an explicit text command
+      // asks the bot to respond. This prevents stale/old chat activity from
+      // triggering automated replies while preserving first-contact replies.
+      const body = message.type === 'text' ? (message.text?.body || '') : '';
+      const explicitBotRequest = knownContact && /^bot:\s*/i.test(body);
+      if (knownContact && !explicitBotRequest) {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true };
+      }
+
+      const messageForBot = explicitBotRequest
+        ? { ...message, text: { ...message.text, body: body.replace(/^bot:\s*/i, '').trim() } }
+        : message;
+      const result = await handleIncomingInMemory(messageForBot, from);
       if (releaseLease) await releaseLease.assertOwnership();
       if (firestoreEnabled) {
         const current = leads.snapshot(from)[0];
