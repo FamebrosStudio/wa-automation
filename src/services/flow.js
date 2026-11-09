@@ -1,33 +1,13 @@
 const leads = require('./leads');
 
-// Multi-step lead capture flow
-// Steps: name -> business -> budget -> timeline -> done
 const FLOW_STEPS = {
-  name: {
-    question: "What's your name?",
-    next: 'business',
-    field: 'name',
-  },
-  business: {
-    question: "What's your business name or type? (e.g., salon, restaurant, e-commerce)",
-    next: 'budget',
-    field: 'business',
-  },
-  budget: {
-    question: "What's your monthly marketing budget range?",
-    options: ['Under 25K', '25K-50K', '50K-1L', '1L+'],
-    next: 'timeline',
-    field: 'budget',
-  },
-  timeline: {
-    question: "When do you want to start?",
-    options: ['Immediately', 'This month', 'Next month', 'Just exploring'],
-    next: null,
-    field: 'timeline',
-  },
+  name: { question: "What's your name?", next: 'business', field: 'name' },
+  business: { question: "What's your business name or type? (e.g., salon, restaurant, e-commerce)", next: 'budget', field: 'business' },
+  budget: { question: "What's your monthly marketing budget range?", options: ['Under 25K', '25K-50K', '50K-1L', '1L+'], next: 'timeline', field: 'budget' },
+  timeline: { question: "When do you want to start?", options: ['Immediately', 'This month', 'Next month', 'Just exploring'], next: null, field: 'timeline' },
 };
 
-const activeFlows = new Map(); // phone -> { step, data }
+const activeFlows = new Map();
 
 const SERVICE_FLOWS = {
   social: {
@@ -65,6 +45,18 @@ const SERVICE_FLOWS = {
       currentWebsite: { question: 'Please share your current website link, or type “none” if you do not have one.', field: 'currentWebsite', doneReply: 'Thank you! ✅ We\'ve received your website requirements. Our website team will review them and get in touch shortly.' },
     },
   },
+  other: {
+    service: 'Other Services',
+    intro: 'Happy to help with other services. 🎯\n\nPlease share what you need.',
+    steps: {
+      requirement: { question: 'What service or support do you need?', field: 'requirement', next: 'name' },
+      name: { question: 'What is your name?', field: 'name', next: 'business' },
+      business: { question: 'What is your business name or type?', field: 'business', next: 'location' },
+      location: { question: 'Where is your business located?', field: 'location', next: 'budget' },
+      budget: { question: 'What is your budget range?', options: ['Under 25K', '25K-50K', '50K-1L', '1L+', 'Not sure'], field: 'budget', next: 'timeline' },
+      timeline: { question: 'When would you like to start?', options: ['Immediately', 'This month', 'Next month', 'Just exploring'], field: 'timeline', doneReply: 'Thank you! ✅ We have received your requirements. Our team will connect with you shortly.' },
+    },
+  },
   team: {
     service: 'Talk to Our Team',
     intro: 'Of course! 😊\n\nWe\'re connecting you with our team.\n\nPlease share your name.',
@@ -76,7 +68,7 @@ const SERVICE_FLOWS = {
 };
 
 function startFlow(phone) {
-  activeFlows.set(phone, { step: 'name', data: {} });
+  activeFlows.set(phone, { step: 'name', data: {}, history: [] });
   return FLOW_STEPS.name.question;
 }
 
@@ -84,12 +76,12 @@ function startServiceFlow(phone, serviceKey) {
   const definition = SERVICE_FLOWS[serviceKey];
   if (!definition) return null;
   const firstStep = Object.keys(definition.steps)[0];
-  activeFlows.set(phone, { service: serviceKey, step: firstStep, data: {} });
+  activeFlows.set(phone, { service: serviceKey, step: firstStep, data: {}, history: [] });
   return { intro: definition.intro, step: firstStep, ...definition.steps[firstStep] };
 }
 
 function getOptionId(step, option) {
-  return `flow_${step}_${FLOW_STEPS[step].options.indexOf(option)}`;
+  return `flow_${step}_${String(option).toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
 }
 
 function hasActiveFlow(phone) {
@@ -107,24 +99,40 @@ function processFlowResponse(phone, text) {
   const flow = activeFlows.get(phone);
   if (!flow) return null;
 
-  if (/^(cancel|stop|menu)$/i.test((text || '').trim())) {
+  const normalized = (text || '').trim();
+  if (/^(cancel|stop|menu)$/i.test(normalized)) {
     cancelFlow(phone);
     return { reply: 'No problem, I have cancelled that. You can keep asking me anything, or type menu to see the options.', options: null, done: false, cancelled: true };
+  }
+  if (/^(back|go back)$/i.test(normalized)) {
+    if (Array.isArray(flow.history) && flow.history.length) {
+      flow.step = flow.history.pop();
+      const current = getCurrentStep(phone);
+      if (current) return { reply: current.question, options: current.options || null, step: flow.step, done: false, back: true };
+    }
+    const current = getCurrentStep(phone);
+    return { reply: 'You are already at the first step.', options: current?.options || null, step: flow.step, done: false };
+  }
+  if (/^(restart|start over)$/i.test(normalized)) {
+    const service = flow.service;
+    if (service) return startServiceFlow(phone, service);
+    return startFlow(phone);
   }
 
   const flowDefinition = flow.service ? SERVICE_FLOWS[flow.service] : null;
   const stepConfig = flowDefinition ? flowDefinition.steps[flow.step] : FLOW_STEPS[flow.step];
-  const selectedIndex = /^flow_[a-z0-9]+_(\d+)$/i.exec((text || '').trim());
-  const answer = selectedIndex && selectedIndex[1] === flow.step
+  const selectedIndex = /^flow_[a-z0-9]+_(\d+)$/i.exec(normalized);
+  const answer = selectedIndex && stepConfig.options
     ? stepConfig.options[Number(selectedIndex[1])]
-    : selectedIndex && stepConfig.options
-      ? stepConfig.options[Number(selectedIndex[1])]
-      : stepConfig.options && /^\d+$/.test((text || '').trim())
-        ? stepConfig.options[Number(text.trim()) - 1]
-    : text;
+    : stepConfig.options && /^\d+$/.test(normalized)
+      ? stepConfig.options[Number(normalized) - 1]
+      : normalized;
+
   if (stepConfig.options && !stepConfig.options.includes(answer)) {
     return { reply: stepConfig.question, options: stepConfig.options, step: flow.step, done: false };
   }
+  flow.history = flow.history || [];
+  flow.history.push(flow.step);
   flow.data[stepConfig.field] = answer;
 
   if (flowDefinition) {
@@ -139,8 +147,18 @@ function processFlowResponse(phone, text) {
     leads.updateLead(phone, {
       service: flowDefinition.service,
       humanRequested: flow.service === 'team',
-      business: data.businessName || lead.business,
+      business: data.businessName || data.business || lead.business,
       name: data.name || lead.name,
+      budget: data.budget || lead.budget,
+      timeline: data.timeline || lead.timeline,
+      instagram: data.instagram || lead.instagram,
+      location: data.location || lead.location,
+      product: data.product || lead.product,
+      goal: data.goal || lead.goal,
+      shootType: data.shootType || lead.shootType,
+      websiteType: data.websiteType || lead.websiteType,
+      currentWebsite: data.currentWebsite || lead.currentWebsite,
+      requirement: data.requirement || lead.requirement,
       serviceDetails: data,
     });
     return { reply: stepConfig.doneReply, options: null, done: true, data, service: flowDefinition.service };
@@ -149,29 +167,18 @@ function processFlowResponse(phone, text) {
   if (stepConfig.next) {
     flow.step = stepConfig.next;
     const nextConfig = FLOW_STEPS[stepConfig.next];
-    if (nextConfig.options) {
-      return { reply: nextConfig.question, options: nextConfig.options, step: stepConfig.next, done: false };
-    }
+    if (nextConfig.options) return { reply: nextConfig.question, options: nextConfig.options, step: stepConfig.next, done: false };
     return { reply: nextConfig.question, options: null, done: false };
   }
 
-  // Flow complete
   const data = flow.data;
   activeFlows.delete(phone);
-
-  // Update lead with collected data
   const lead = leads.getLead(phone);
   if (data.name) lead.name = data.name;
   if (data.business) lead.business = data.business;
   if (data.budget) lead.budget = data.budget;
   if (data.timeline) lead.timeline = data.timeline;
-
-  return {
-    reply: `Thanks ${data.name || ''}! I have your details. Our team will review them and get back to you. You can also keep asking me questions here.`,
-    options: null,
-    done: true,
-    data,
-  };
+  return { reply: `Thanks ${data.name || ''}! I have your details. Our team will review them and get back to you.`, options: null, done: true, data };
 }
 
 function cancelFlow(phone) {
@@ -182,13 +189,16 @@ function restoreFlow(phone, state) {
   const validStep = state?.service
     ? SERVICE_FLOWS[state.service]?.steps[state.step]
     : FLOW_STEPS[state?.step];
-  if (state && validStep && state.data && typeof state.data === 'object') activeFlows.set(phone, state);
-  else activeFlows.delete(phone);
+  if (state && validStep && state.data && typeof state.data === 'object') {
+    activeFlows.set(phone, { step: state.step, data: { ...state.data }, service: state.service, history: Array.isArray(state.history) ? state.history : [] });
+  } else {
+    activeFlows.delete(phone);
+  }
 }
 
 function snapshotFlow(phone) {
   const state = activeFlows.get(phone);
-  return state ? { step: state.step, data: { ...state.data } } : null;
+  return state ? { step: state.step, data: { ...state.data }, service: state.service, history: [...(state.history || [])] } : null;
 }
 
 module.exports = { startFlow, startServiceFlow, hasActiveFlow, getCurrentStep, getOptionId, processFlowResponse, cancelFlow, restoreFlow, snapshotFlow, FLOW_STEPS, SERVICE_FLOWS };

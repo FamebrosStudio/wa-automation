@@ -12,7 +12,7 @@ const phoneQueues = new Map();
 const MENU_ORDER = ['service_social', 'service_ads', 'service_photo', 'service_website', 'service_team'];
 const SERVICE_IDS = {
   service_social: 'social', service_ads: 'ads', service_photo: 'photo',
-  service_website: 'website', service_team: 'team',
+  service_website: 'website', service_other: 'other', service_team: 'team',
 };
 
 function cleanupProcessed() {
