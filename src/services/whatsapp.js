@@ -4,6 +4,12 @@ const config = require('../config');
 const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 
 async function send(payload) {
+  if (process.env.BOT_ENABLED !== 'true') throw new Error('Sales automation is disabled');
+  const firestore = require('./firestore');
+  const { eligibility } = require('./eligibility');
+  if (!firestore.isConfigured()) throw new Error('Durable contact eligibility is unavailable');
+  const decision = eligibility(await firestore.getLeadByPhone(payload.to));
+  if (!decision.allowed) throw new Error(`Automated send suppressed: ${decision.reason}`);
   if (!config.whatsappToken || !config.phoneNumberId) {
     // Do not acknowledge an inbound webhook as handled when no reply could be sent.
     // Throwing lets the webhook return 503 so Meta can retry after configuration is fixed.
@@ -12,6 +18,7 @@ async function send(payload) {
   const url = `${BASE}/${config.phoneNumberId}/messages`;
   try {
     const res = await axios.post(url, payload, {
+      timeout: 15000,
       headers: {
         Authorization: `Bearer ${config.whatsappToken}`,
         'Content-Type': 'application/json; charset=utf-8',

@@ -3,6 +3,7 @@ const K = require('../data/knowledge');
 const leads = require('../services/leads');
 const flow = require('../services/flow');
 const firestore = require('../services/firestore');
+const { eligibility } = require('../services/eligibility');
 
 const processed = new Set();
 const sessions = new Map();
@@ -62,10 +63,6 @@ function interactiveReplyId(message) {
   if (interactive.type === 'list_reply') return interactive.list_reply?.id || null;
   if (interactive.type === 'button_reply') return interactive.button_reply?.id || null;
   return null;
-}
-
-function isBotOption(id) {
-  return Boolean(id && (SERVICE_IDS[id] || ['menu', 'contact', 'human'].includes(id) || /^flow_[a-z0-9]+_\d+$/i.test(id)));
 }
 
 async function startLeadCapture(from) {
@@ -244,6 +241,7 @@ async function handleIncomingInMemory(message, from) {
 }
 
 async function handleIncoming(message, from) {
+  if (process.env.BOT_ENABLED !== 'true') throw new Error('Sales automation is disabled; delivery may be retried');
   let firestoreEnabled = firestore.isConfigured();
   let storageUnavailable = false;
   const previous = phoneQueues.get(from) || Promise.resolve();
@@ -287,16 +285,27 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'qualified-lead' };
       }
-      // Only contacts first seen after this policy was deployed are enrolled.
-      // Older records stay silent for ordinary text, but a deliberate tap on a
-      // bot option is a fresh opt-in to continue the requested flow.
-      const explicitOption = message.type === 'interactive' && isBotOption(interactiveReplyId(message));
-      if (previouslyStored && knownLead?.automationEligible !== true && !explicitOption) {
+      // Menu taps never override an existing contact's suppression policy.
+      if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
-      if (!previouslyStored || explicitOption) {
-        leads.updateLead(from, { automationEligible: true, ...(explicitOption ? { welcomeSent: true } : {}) });
+      if (!previouslyStored) {
+        leads.updateLead(from, { automationEligible: true, contactType: 'New Lead', leadSource: message.referral ? 'Meta referral' : 'WhatsApp', referral: message.referral || null });
+        if (firestoreEnabled) await firestore.saveLead(leads.snapshot(from)[0]);
+      }
+      const body = message.type === 'text' ? (message.text?.body || '').trim() : '';
+      const option = interactiveReplyId(message);
+      const optedOut = /^(stop|unsubscribe|not interested|no thanks)$/i.test(body);
+      const human = ['human', 'service_team', 'contact'].includes(option) || /^(human|agent|talk to (a )?human|speak to (your )?team|call me)$/i.test(body);
+      if (optedOut || human) {
+        flow.cancelFlow(from);
+        const current = leads.snapshot(from)[0];
+        const crm = { ...(record?.crm || {}), botPaused: true, humanTakeover: human, optedOut };
+        leads.updateLead(from, { ...(optedOut ? { status: 'Lost', optedOut: true } : { humanRequested: true }), crm });
+        if (firestoreEnabled) await firestore.saveLead({ ...current, activeFlow: null, crm, handover: human ? { status: 'Unassigned', requestedAt: new Date().toISOString() } : null });
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: optedOut ? 'opted-out' : 'human-handover' };
       }
       const result = await handleIncomingInMemory(message, from);
       if (releaseLease) await releaseLease.assertOwnership();

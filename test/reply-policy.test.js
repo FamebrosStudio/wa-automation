@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const Module = require('node:module');
 
 test('only newly enrolled contacts and their active flows receive automation', async () => {
+  process.env.BOT_ENABLED = 'true';
   const sent = [];
   const whatsapp = {
     text: async (to, body) => sent.push({ type: 'text', to, body }),
@@ -32,11 +33,11 @@ test('only newly enrolled contacts and their active flows receive automation', a
     leads.getLead(oldPhone).welcomeSent = true;
     const beforeOldOption = sent.length;
     await handleIncoming({ id: 'old-option', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_website' } } }, oldPhone);
-    assert.ok(sent.length > beforeOldOption, 'a deliberate menu selection should receive its requested response');
-    assert.equal(leads.getLead(oldPhone).automationEligible, true, 'a menu selection opts the contact into that flow');
+    assert.equal(sent.length, beforeOldOption, 'menu selections must not bypass old-contact exclusions');
+    assert.notEqual(leads.getLead(oldPhone).automationEligible, true);
     const beforeOldFlowReply = sent.length;
     await handleIncoming({ id: 'old-flow-reply', type: 'text', text: { body: 'Business Website' } }, oldPhone);
-    assert.ok(sent.length > beforeOldFlowReply, 'an opted-in menu flow should continue responding');
+    assert.equal(sent.length, beforeOldFlowReply, 'old unfinished flows stay silent');
 
     const newPhone = '919900001234';
     await handleIncoming({ id: 'new-1', type: 'text', text: { body: 'hello' } }, newPhone);

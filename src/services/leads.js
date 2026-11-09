@@ -1,4 +1,5 @@
 const config = require('../config');
+const CRM_STATUSES = require('./crm-policy').STATUSES;
 
 const STATUS = {
   QUALIFIED: 'Qualified',
@@ -78,7 +79,7 @@ function classifyLead(phone, message, interactionType) {
   const nameMatch = text.match(/(?:i'm|i am|my name is|this is)\s+([a-z]+(?:\s+[a-z]+)?)/i);
   if (nameMatch) lead.name = lead.name || nameMatch[1].trim();
 
-  let newStatus = [STATUS.QUALIFIED, STATUS.NON_CONFIRMED, STATUS.NON_QUALIFIED].includes(lead.status)
+  let newStatus = CRM_STATUSES.includes(lead.status)
     ? lead.status
     : null;
 
@@ -155,7 +156,7 @@ function restoreOne(item) {
 }
 
 function normalizeStatus(lead) {
-  if (![STATUS.QUALIFIED, STATUS.NON_CONFIRMED, STATUS.NON_QUALIFIED].includes(lead.status)) {
+  if (!CRM_STATUSES.includes(lead.status)) {
     lead.status = null;
   }
 }
