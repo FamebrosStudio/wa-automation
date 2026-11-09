@@ -31,6 +31,13 @@ test('known contacts are ignored unless they explicitly prefix a message with bo
 
     await handleIncoming({ id: 'old-2', type: 'text', text: { body: 'bot: hi' } }, phone);
     assert.ok(sent.length > firstContactReplies, 'bot: prefix should explicitly request a reply');
+
+    const leads = require('../src/services/leads');
+    leads.getLead(phone).status = 'Qualified';
+    const beforeQualifiedMessage = sent.length;
+    const qualifiedResult = await handleIncoming({ id: 'qualified-1', type: 'text', text: { body: 'bot: hi' } }, phone);
+    assert.equal(qualifiedResult.reason, 'qualified-lead');
+    assert.equal(sent.length, beforeQualifiedMessage, 'qualified contacts must never receive bot replies');
   } finally {
     Module._load = originalLoad;
   }

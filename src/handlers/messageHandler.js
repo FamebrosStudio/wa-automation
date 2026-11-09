@@ -266,6 +266,11 @@ async function handleIncoming(message, from) {
         leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
         flow.restoreFlow(from, record.activeFlow);
       }
+      const knownLead = leads.snapshot(from)[0]?.lead;
+      if (knownLead?.status === 'Qualified') {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'qualified-lead' };
+      }
       // Existing conversations stay silent unless an explicit text command
       // asks the bot to respond. This prevents stale/old chat activity from
       // triggering automated replies while preserving first-contact replies.
