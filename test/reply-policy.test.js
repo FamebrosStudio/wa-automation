@@ -29,6 +29,14 @@ test('only newly enrolled contacts and their active flows receive automation', a
     const oldResult = await handleIncoming({ id: 'old-1', type: 'text', text: { body: 'bot: hi' } }, oldPhone);
     assert.equal(oldResult.reason, 'existing-contact-not-enrolled');
     assert.equal(sent.length, beforeOld, 'old contacts must remain silent, even with bot: or an active flow');
+    leads.getLead(oldPhone).welcomeSent = true;
+    const beforeOldOption = sent.length;
+    await handleIncoming({ id: 'old-option', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_website' } } }, oldPhone);
+    assert.ok(sent.length > beforeOldOption, 'a deliberate menu selection should receive its requested response');
+    assert.equal(leads.getLead(oldPhone).automationEligible, true, 'a menu selection opts the contact into that flow');
+    const beforeOldFlowReply = sent.length;
+    await handleIncoming({ id: 'old-flow-reply', type: 'text', text: { body: 'Business Website' } }, oldPhone);
+    assert.ok(sent.length > beforeOldFlowReply, 'an opted-in menu flow should continue responding');
 
     const newPhone = '919900001234';
     await handleIncoming({ id: 'new-1', type: 'text', text: { body: 'hello' } }, newPhone);

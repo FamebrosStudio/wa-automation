@@ -57,6 +57,17 @@ function numberToId(text) {
   return MENU_ORDER[n - 1];
 }
 
+function interactiveReplyId(message) {
+  const interactive = message?.interactive || {};
+  if (interactive.type === 'list_reply') return interactive.list_reply?.id || null;
+  if (interactive.type === 'button_reply') return interactive.button_reply?.id || null;
+  return null;
+}
+
+function isBotOption(id) {
+  return Boolean(id && (SERVICE_IDS[id] || ['menu', 'contact', 'human'].includes(id) || /^flow_[a-z0-9]+_\d+$/i.test(id)));
+}
+
 async function startLeadCapture(from) {
   await whatsapp.text(from, `${flow.startFlow(from)} Type cancel at any time to stop.`);
 }
@@ -113,10 +124,7 @@ async function handleIncomingInMemory(message, from) {
   const type = message.type;
 
   if (type === 'interactive') {
-    const interactive = message.interactive || {};
-    let id = null;
-    if (interactive.type === 'list_reply') id = interactive.list_reply?.id;
-    else if (interactive.type === 'button_reply') id = interactive.button_reply?.id;
+    const id = interactiveReplyId(message);
 
     if (id) {
       leads.addMessage(from, 'user', `[selected: ${id}]`);
@@ -280,12 +288,16 @@ async function handleIncoming(message, from) {
         return { ignored: true, reason: 'qualified-lead' };
       }
       // Only contacts first seen after this policy was deployed are enrolled.
-      // Older records stay silent, including bot: commands and unfinished flows.
-      if (previouslyStored && knownLead?.automationEligible !== true) {
+      // Older records stay silent for ordinary text, but a deliberate tap on a
+      // bot option is a fresh opt-in to continue the requested flow.
+      const explicitOption = message.type === 'interactive' && isBotOption(interactiveReplyId(message));
+      if (previouslyStored && knownLead?.automationEligible !== true && !explicitOption) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
-      if (!previouslyStored) leads.updateLead(from, { automationEligible: true });
+      if (!previouslyStored || explicitOption) {
+        leads.updateLead(from, { automationEligible: true, ...(explicitOption ? { welcomeSent: true } : {}) });
+      }
       const result = await handleIncomingInMemory(message, from);
       if (releaseLease) await releaseLease.assertOwnership();
       if (firestoreEnabled) {
