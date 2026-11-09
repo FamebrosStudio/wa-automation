@@ -133,11 +133,16 @@ keys. Do not commit or paste credentials into chat. The database is in
 The included `firestore.rules` denies client access; the app uses the Google
 Cloud Firestore server client with Vercel OIDC credentials. Without valid
 credentials, storage remains in-memory and is not durable. The Basic-Auth-
-protected dashboard lists all enquiries, complete service answers and
-conversation history, internal notes, salesperson/team assignment, and explicit
-status saves. New leads start as Non-qualified; salespeople call and manually
-decide whether to mark them Qualified or Non-qualified. Phone numbers are not
-included in the lead-list response; they appear only in authenticated details.
+protected dashboard lists all enquiries in Qualified, Non-confirmed, and
+Non-qualified stages. It includes service answers and conversation history,
+internal notes, salesperson/team assignment, and explicit status saves. New
+leads start as Non-confirmed; phone numbers appear only in authenticated details.
+The dashboard uses a searchable people rail, draggable status lanes, and a
+double-click details dialog.
+
+Dashboard interface direction is adapted from [unslop](https://github.com/heydamir/unslop)
+by Damir Sokolovsky ([@heydamir](https://x.com/heydamir)), licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 Webhook processing uses Firestore transactionally acquired per-phone leases and
 durable message-ID records when Firestore is configured. Lease contention or

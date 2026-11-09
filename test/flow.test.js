@@ -23,7 +23,7 @@ test('lead capture offers real choices and completion does not synthesize a lead
   const complete = flow.processFlowResponse(phone, 'flow_timeline_1');
   assert.equal(complete.done, true);
   assert.equal(leads.getLead(phone).messageCount, beforeComplete);
-  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_QUALIFIED);
+  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_CONFIRMED);
 });
 
 test('cancel removes the active flow', () => {
@@ -65,7 +65,7 @@ test('social media service captures customer type and Instagram without auto-qua
   assert.equal(complete.done, true);
   assert.equal(leads.getLead(phone).service, 'Social Media Management');
   assert.equal(leads.getLead(phone).assignedTeam, null);
-  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_QUALIFIED);
+  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_CONFIRMED);
   assert.equal(leads.getLead(phone).serviceDetails.customerType, "I'm a creator/influencer");
   assert.equal(leads.getLead(phone).serviceDetails.instagram, 'https://instagram.com/example');
 });
@@ -80,7 +80,7 @@ test('Meta Ads captures business details and goal without auto-assigning the lea
   const complete = flow.processFlowResponse(phone, '1');
   assert.equal(complete.done, true);
   assert.equal(leads.getLead(phone).assignedTeam, null);
-  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_QUALIFIED);
+  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_CONFIRMED);
   assert.equal(leads.getLead(phone).business, 'Fame Bakery');
   assert.equal(leads.getLead(phone).serviceDetails.goal, 'WhatsApp Enquiries');
 });

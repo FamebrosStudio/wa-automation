@@ -2,6 +2,7 @@ const config = require('../config');
 
 const STATUS = {
   QUALIFIED: 'Qualified',
+  NON_CONFIRMED: 'Non-confirmed',
   NON_QUALIFIED: 'Non-qualified',
 };
 
@@ -13,7 +14,7 @@ function getLead(phone) {
   if (!leads.has(phone)) {
     leads.set(phone, {
       phone,
-      status: STATUS.NON_QUALIFIED,
+      status: STATUS.NON_CONFIRMED,
       firstSeen: new Date().toISOString(),
       lastSeen: new Date().toISOString(),
       messageCount: 0,
@@ -77,7 +78,9 @@ function classifyLead(phone, message, interactionType) {
   const nameMatch = text.match(/(?:i'm|i am|my name is|this is)\s+([a-z]+(?:\s+[a-z]+)?)/i);
   if (nameMatch) lead.name = lead.name || nameMatch[1].trim();
 
-  let newStatus = lead.status === STATUS.QUALIFIED ? STATUS.QUALIFIED : STATUS.NON_QUALIFIED;
+  let newStatus = [STATUS.QUALIFIED, STATUS.NON_CONFIRMED, STATUS.NON_QUALIFIED].includes(lead.status)
+    ? lead.status
+    : STATUS.NON_CONFIRMED;
 
   if (interactionType === 'human_request' || /\b(talk to (a )?human|speak (to|with) (a )?(person|agent|team|someone)|connect me|real person|live agent)\b/i.test(text)) {
     lead.humanRequested = true;
@@ -138,7 +141,7 @@ function restore(snapshot = []) {
   conversations.clear();
   for (const item of snapshot) {
     if (!item || !item.phone || !item.lead) continue;
-    if (item.lead.status !== STATUS.QUALIFIED) item.lead.status = STATUS.NON_QUALIFIED;
+    normalizeStatus(item.lead);
     leads.set(item.phone, item.lead);
     conversations.set(item.phone, Array.isArray(item.history) ? item.history.slice(-MAX_HISTORY) : []);
   }
@@ -146,9 +149,15 @@ function restore(snapshot = []) {
 
 function restoreOne(item) {
   if (!item || !item.phone || !item.lead) return;
-  if (item.lead.status !== STATUS.QUALIFIED) item.lead.status = STATUS.NON_QUALIFIED;
+  normalizeStatus(item.lead);
   leads.set(item.phone, item.lead);
   conversations.set(item.phone, Array.isArray(item.history) ? item.history.slice(-MAX_HISTORY) : []);
+}
+
+function normalizeStatus(lead) {
+  if (![STATUS.QUALIFIED, STATUS.NON_CONFIRMED, STATUS.NON_QUALIFIED].includes(lead.status)) {
+    lead.status = STATUS.NON_CONFIRMED;
+  }
 }
 
 function snapshot(phone) {

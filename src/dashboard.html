@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141415">
+  <title>Lead pipeline · Famebros Studio</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #141415;
+      --sidebar: #0f0f10;
+      --surface: #19191b;
+      --raised: #232325;
+      --line: rgba(237, 237, 237, .08);
+      --line-strong: rgba(237, 237, 237, .14);
+      --text: #ededed;
+      --secondary: #a1a1a6;
+      --muted: #85858b;
+      --accent: #76c998;
+      --qualified: #75c999;
+      --pending: #d6ae70;
+      --rejected: #d98585;
+      --radius-card: 12px;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--page); color: var(--text); font: 400 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    button, input, select, textarea { font: inherit; }
+    button { color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 256px minmax(0, 1fr); }
+    .sidebar { min-width: 0; background: var(--sidebar); border-right: 1px solid var(--line); padding: 20px 16px 16px; display: flex; flex-direction: column; }
+    .brand { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 4px 20px; border-bottom: 1px solid var(--line); }
+    .brand-mark { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--accent); font-size: 14px; font-weight: 600; }
+    .brand-name { font-size: 15px; font-weight: 500; letter-spacing: 0; }
+    .brand-subtitle { margin-top: 1px; color: var(--muted); font-size: 12px; }
+    .sidebar-heading { display: flex; justify-content: space-between; align-items: center; margin: 20px 4px 10px; color: var(--secondary); font-size: 12px; }
+    .quiet-count, .count { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .search { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); outline: none; }
+    .search::placeholder { color: var(--muted); }
+    .search:focus { border-color: rgba(118, 201, 152, .55); }
+    .people { display: grid; gap: 4px; overflow: auto; margin: 10px -4px 0; padding: 0 4px; }
+    .person { width: 100%; min-height: 48px; padding: 7px 8px; display: flex; gap: 10px; align-items: center; text-align: left; border: 1px solid transparent; border-radius: 8px; background: transparent; cursor: pointer; transition: background-color 140ms var(--ease), border-color 140ms var(--ease); }
+    .person:hover, .person.is-selected { background: var(--raised); border-color: var(--line); }
+    .avatar { flex: 0 0 30px; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--secondary); background: #202022; font-size: 11px; font-weight: 500; }
+    .person-copy { min-width: 0; }
+    .person-name { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+    .person-service { overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-footer { margin-top: auto; padding: 14px 4px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .main { min-width: 0; padding: 28px 28px 24px; }
+    .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+    h1 { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 500; letter-spacing: -.02em; }
+    .intro { margin: 6px 0 0; color: var(--secondary); font-size: 13px; }
+    .head-actions { display: flex; gap: 8px; align-items: center; }
+    .button { min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--raised); color: var(--text); cursor: pointer; transition: background-color 140ms var(--ease), border-color 140ms var(--ease); }
+    .button:hover { background: #2b2b2e; border-color: rgba(237, 237, 237, .22); }
+    .button-primary { border-color: transparent; background: var(--accent); color: #102017; font-weight: 500; }
+    .button-primary:hover { background: #8bd5a9; }
+    .pipeline-summary { display: flex; align-items: center; gap: 18px; margin: 0 0 16px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .summary-item { display: inline-flex; align-items: center; gap: 7px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .text-qualified { color: var(--qualified); }
+    .text-pending { color: var(--pending); }
+    .text-rejected { color: var(--rejected); }
+    .board { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); align-items: start; gap: 12px; min-height: 62vh; }
+    .lane { min-width: 0; min-height: 62vh; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(25, 25, 27, .56); transition: border-color 140ms var(--ease), background-color 140ms var(--ease); }
+    .lane.is-over { border-color: rgba(118, 201, 152, .5); background: rgba(118, 201, 152, .045); }
+    .lane-head { display: flex; justify-content: space-between; align-items: center; min-height: 28px; margin: 0 2px 12px; }
+    .lane-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
+    .lane-title .dot { width: 8px; height: 8px; }
+    .lane-list { display: grid; align-content: start; gap: 8px; min-height: 52vh; }
+    .lead-card { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); color: var(--text); text-align: left; cursor: grab; transition: background-color 140ms var(--ease), border-color 140ms var(--ease), transform 140ms var(--ease); }
+    .lead-card:hover { background: #202022; border-color: var(--line-strong); }
+    .lead-card:active { cursor: grabbing; transform: scale(.99); }
+    .lead-card.is-selected { border-color: rgba(118, 201, 152, .48); }
+    .lead-card.is-dragging { opacity: .42; }
+    .lead-card-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+    .lead-name { overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+    .lead-business { margin-top: 2px; color: var(--secondary); font-size: 12px; overflow-wrap: anywhere; }
+    .lead-service { display: inline-block; max-width: 100%; overflow: hidden; margin-top: 10px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .lead-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 11px; }
+    .lead-owner { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .empty-lane { padding: 20px 10px; color: var(--muted); font-size: 12px; text-align: center; }
+    .status-select { width: 100%; height: 36px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); }
+    dialog { width: min(720px, calc(100vw - 32px)); max-width: none; max-height: min(88vh, 900px); padding: 0; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface); color: var(--text); box-shadow: 0 24px 80px rgba(0, 0, 0, .42); }
+    dialog::backdrop { background: rgba(0, 0, 0, .66); backdrop-filter: blur(2px); }
+    .dialog-shell { display: flex; flex-direction: column; max-height: min(88vh, 900px); }
+    .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 20px 22px 16px; border-bottom: 1px solid var(--line); }
+    .dialog-title { margin: 0; font-size: 20px; line-height: 1.25; font-weight: 500; }
+    .dialog-subtitle { margin-top: 5px; color: var(--secondary); font-size: 12px; }
+    .icon-button { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--secondary); cursor: pointer; }
+    .icon-button:hover { background: var(--raised); color: var(--text); }
+    .dialog-body { overflow: auto; padding: 18px 22px 22px; }
+    .details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .detail-field { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #1d1d1f; }
+    .detail-label { color: var(--muted); font-size: 11px; }
+    .detail-value { margin-top: 5px; color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+    .detail-value a { color: var(--accent); text-decoration: none; }
+    .section-title { margin: 20px 0 8px; color: var(--secondary); font-size: 12px; font-weight: 500; }
+    .conversation { display: grid; gap: 6px; max-height: 240px; overflow: auto; }
+    .message { padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: #1d1d1f; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .message-meta { display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .form-field { display: grid; gap: 5px; min-width: 0; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { color: var(--secondary); font-size: 12px; }
+    .form-field input, .form-field select, .form-field textarea { width: 100%; min-height: 36px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: #151517; color: var(--text); }
+    .form-field textarea { min-height: 72px; resize: vertical; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .toast { position: fixed; right: 20px; bottom: 20px; z-index: 3; padding: 10px 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--raised); color: var(--text); font-size: 13px; opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity 160ms var(--ease), transform 160ms var(--ease); }
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+    .loading, .empty-list { padding: 18px 10px; color: var(--muted); font-size: 12px; }
+    .credit { color: var(--muted); font-size: 10px; }
+    @media (max-width: 1050px) { .app { grid-template-columns: 220px minmax(0, 1fr); } .main { padding: 24px 20px; } .board { grid-template-columns: repeat(3, minmax(205px, 1fr)); overflow-x: auto; } }
+    @media (max-width: 760px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { min-height: 32px; padding-bottom: 10px; }
+      .sidebar-heading { margin: 10px 4px 7px; }
+      .people { display: flex; max-height: 60px; overflow-x: auto; overflow-y: hidden; }
+      .person { width: 180px; flex: 0 0 180px; }
+      .sidebar-footer { display: none; }
+      .main { padding: 20px 16px; }
+      .page-head { align-items: flex-start; flex-direction: column; margin-bottom: 18px; }
+      h1 { font-size: 24px; }
+      .board { grid-template-columns: repeat(3, minmax(250px, 82vw)); min-height: 58vh; }
+      .lane { min-height: 58vh; }
+      .details-grid, .form-grid { grid-template-columns: 1fr; }
+      .form-field.full { grid-column: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="Lead navigation">
+      <div class="brand"><div class="brand-mark" aria-hidden="true">F</div><div><div class="brand-name">Famebros Studio</div><div class="brand-subtitle">Sales desk</div></div></div>
+      <div class="sidebar-heading"><span>People</span><span id="peopleCount" class="quiet-count">0</span></div>
+      <input id="search" class="search" type="search" placeholder="Search people" aria-label="Search people">
+      <nav id="people" class="people" aria-label="People list"><div class="loading">Loading leads</div></nav>
+      <div class="sidebar-footer"><span class="credit">Interface direction adapted from unslop by @heydamir · CC BY 4.0</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="page-head">
+        <div><h1>Lead pipeline</h1><p class="intro">Review the conversation, call the client, then set a status</p></div>
+        <div class="head-actions"><button id="refresh" class="button" type="button">Refresh</button></div>
+      </header>
+      <div class="pipeline-summary" aria-live="polite">
+        <span class="summary-item text-qualified"><span class="dot"></span><span id="qualifiedSummary">0 qualified</span></span>
+        <span class="summary-item text-pending"><span class="dot"></span><span id="pendingSummary">0 non-confirmed</span></span>
+        <span class="summary-item text-rejected"><span class="dot"></span><span id="rejectedSummary">0 non-qualified</span></span>
+      </div>
+      <section id="board" class="board" aria-label="Lead status board"></section>
+    </main>
+  </div>
+
+  <dialog id="leadDialog" aria-labelledby="dialogTitle">
+    <div class="dialog-shell">
+      <header class="dialog-head"><div><h2 id="dialogTitle" class="dialog-title">Lead details</h2><div id="dialogSubtitle" class="dialog-subtitle"></div></div><button id="closeDialog" class="icon-button" type="button" aria-label="Close details">×</button></header>
+      <div id="dialogBody" class="dialog-body"></div>
+    </div>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STATUSES = [
+      { name: 'Qualified', tone: 'qualified' },
+      { name: 'Non-confirmed', tone: 'pending' },
+      { name: 'Non-qualified', tone: 'rejected' },
+    ];
+    let leads = [];
+    let selectedId = null;
+    let toastTimer;
+    const peopleEl = document.getElementById('people');
+    const boardEl = document.getElementById('board');
+    const searchEl = document.getElementById('search');
+    const dialog = document.getElementById('leadDialog');
+    const dialogBody = document.getElementById('dialogBody');
+
+    async function load() {
+      try {
+        const response = await fetch('/leads');
+        if (!response.ok) throw new Error(`Could not load leads (${response.status})`);
+        const data = await response.json();
+        leads = data.leads || [];
+        document.getElementById('peopleCount').textContent = String(leads.length);
+        document.getElementById('qualifiedSummary').textContent = `${data.qualified || 0} qualified`;
+        document.getElementById('pendingSummary').textContent = `${data.nonConfirmed || 0} non-confirmed`;
+        document.getElementById('rejectedSummary').textContent = `${data.nonQualified || 0} non-qualified`;
+        renderPeople();
+        renderBoard();
+      } catch (error) {
+        peopleEl.replaceChildren(makeText('div', 'empty-list', error.message));
+        boardEl.replaceChildren(makeText('div', 'empty-list', 'Lead data is unavailable'));
+      }
+    }
+
+    function makeText(tag, className, text) {
+      const element = document.createElement(tag);
+      element.className = className;
+      element.textContent = text;
+      return element;
+    }
+
+    function displayName(lead) {
+      return lead.name || lead.business || 'New enquiry';
+    }
+
+    function visibleLeads() {
+      const term = searchEl.value.trim().toLowerCase();
+      if (!term) return leads;
+      return leads.filter((lead) => [lead.name, lead.business, lead.service, lead.owner, lead.status]
+        .concat(lead.tags || []).join(' ').toLowerCase().includes(term));
+    }
+
+    function renderPeople() {
+      const filtered = visibleLeads();
+      if (!filtered.length) {
+        peopleEl.replaceChildren(makeText('div', 'empty-list', leads.length ? 'No matching people' : 'No leads yet'));
+        return;
+      }
+      peopleEl.replaceChildren(...filtered.map((lead) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `person${selectedId === lead.id ? ' is-selected' : ''}`;
+        button.title = 'Double-click to open lead details';
+        const initials = displayName(lead).split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase();
+        button.append(makeText('span', 'avatar', initials || 'L'));
+        const copy = document.createElement('span');
+        copy.className = 'person-copy';
+        copy.append(makeText('span', 'person-name', displayName(lead)));
+        copy.append(makeText('span', 'person-service', lead.service || 'New enquiry'));
+        button.append(copy);
+        button.addEventListener('click', () => selectLead(lead.id));
+        button.addEventListener('dblclick', () => openLead(lead.id));
+        button.addEventListener('keydown', (event) => { if (event.key === 'Enter') openLead(lead.id); });
+        return button;
+      }));
+    }
+
+    function renderBoard() {
+      const filtered = visibleLeads();
+      boardEl.replaceChildren(...STATUSES.map((status) => {
+        const lane = document.createElement('section');
+        lane.className = 'lane';
+        lane.dataset.status = status.name;
+        lane.addEventListener('dragover', (event) => { event.preventDefault(); lane.classList.add('is-over'); });
+        lane.addEventListener('dragleave', (event) => { if (!lane.contains(event.relatedTarget)) lane.classList.remove('is-over'); });
+        lane.addEventListener('drop', async (event) => {
+          event.preventDefault();
+          lane.classList.remove('is-over');
+          const id = event.dataTransfer.getData('text/plain');
+          if (id) await updateStatus(id, status.name);
+        });
+        const items = filtered.filter((lead) => lead.status === status.name);
+        const head = document.createElement('div');
+        head.className = 'lane-head';
+        const title = document.createElement('div');
+        title.className = `lane-title text-${status.tone}`;
+        title.append(makeText('span', 'dot', ''));
+        title.append(makeText('span', '', status.name));
+        head.append(title, makeText('span', 'count', String(items.length)));
+        lane.append(head);
+        const cards = document.createElement('div');
+        cards.className = 'lane-list';
+        if (!items.length) cards.append(makeText('div', 'empty-lane', 'Drop a lead here'));
+        for (const lead of items) cards.append(createLeadCard(lead));
+        lane.append(cards);
+        return lane;
+      }));
+    }
+
+    function createLeadCard(lead) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.draggable = true;
+      card.className = `lead-card${selectedId === lead.id ? ' is-selected' : ''}`;
+      card.dataset.id = lead.id;
+      card.title = 'Drag to change status · Double-click to open details';
+      card.addEventListener('click', () => selectLead(lead.id));
+      card.addEventListener('dblclick', () => openLead(lead.id));
+      card.addEventListener('keydown', (event) => { if (event.key === 'Enter') openLead(lead.id); });
+      card.addEventListener('dragstart', (event) => {
+        event.dataTransfer.setData('text/plain', lead.id);
+        event.dataTransfer.effectAllowed = 'move';
+        card.classList.add('is-dragging');
+      });
+      card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
+      const top = document.createElement('div');
+      top.className = 'lead-card-top';
+      const title = document.createElement('div');
+      title.append(makeText('div', 'lead-name', displayName(lead)));
+      if (lead.business && lead.name) title.append(makeText('div', 'lead-business', lead.business));
+      top.append(title);
+      card.append(top);
+      if (lead.service) card.append(makeText('span', 'lead-service', lead.service));
+      const meta = document.createElement('div');
+      meta.className = 'lead-meta';
+      meta.append(makeText('span', 'lead-owner', lead.owner || 'Unassigned'));
+      meta.append(makeText('span', '', lead.lastSeen ? new Date(lead.lastSeen).toLocaleDateString() : ''));
+      card.append(meta);
+      return card;
+    }
+
+    function selectLead(id) {
+      selectedId = id;
+      renderPeople();
+      renderBoard();
+    }
+
+    function addDetail(container, label, value, href) {
+      const field = document.createElement('div');
+      field.className = 'detail-field';
+      field.append(makeText('div', 'detail-label', label));
+      const valueEl = document.createElement('div');
+      valueEl.className = 'detail-value';
+      if (href) {
+        const link = document.createElement('a');
+        link.href = href;
+        link.textContent = value || 'Not provided';
+        valueEl.append(link);
+      } else valueEl.textContent = value || 'Not provided';
+      field.append(valueEl);
+      container.append(field);
+    }
+
+    async function openLead(id) {
+      try {
+        const response = await fetch(`/leads/${encodeURIComponent(id)}`);
+        if (!response.ok) throw new Error(`Could not load lead (${response.status})`);
+        const data = await response.json();
+        const lead = data.lead || {};
+        const crm = data.crm || {};
+        selectedId = id;
+        document.getElementById('dialogTitle').textContent = displayName(lead);
+        document.getElementById('dialogSubtitle').textContent = `${lead.service || 'General enquiry'} · Lead ${id}`;
+        dialogBody.replaceChildren();
+
+        const details = document.createElement('div');
+        details.className = 'details-grid';
+        addDetail(details, 'Client name', lead.name || lead.business);
+        addDetail(details, 'Lead ID', id);
+        addDetail(details, 'Service', lead.service);
+        addDetail(details, 'Contact number', data.phone, data.phone ? `tel:${data.phone}` : null);
+        addDetail(details, 'Business', lead.business);
+        addDetail(details, 'Assigned owner / team', crm.owner || lead.assignedTeam);
+        dialogBody.append(details);
+
+        const facts = lead.serviceDetails || {};
+        const factEntries = Object.entries(facts);
+        if (factEntries.length) {
+          dialogBody.append(makeText('h3', 'section-title', 'Details collected'));
+          const factGrid = document.createElement('div');
+          factGrid.className = 'details-grid';
+          for (const [key, value] of factEntries) {
+            const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (character) => character.toUpperCase());
+            addDetail(factGrid, label, typeof value === 'string' ? value : JSON.stringify(value));
+          }
+          dialogBody.append(factGrid);
+        }
+
+        dialogBody.append(makeText('h3', 'section-title', 'Conversation'));
+        const history = document.createElement('div');
+        history.className = 'conversation';
+        for (const entry of (data.history || [])) {
+          const message = document.createElement('div');
+          message.className = 'message';
+          const who = makeText('span', 'message-meta', `${entry.role === 'user' ? 'Client' : 'Bot'} · ${new Date(entry.ts).toLocaleString()}`);
+          message.append(who, document.createTextNode(entry.content || ''));
+          history.append(message);
+        }
+        if (!history.childElementCount) history.append(makeText('div', 'empty-list', 'No conversation history'));
+        dialogBody.append(history);
+
+        dialogBody.append(makeText('h3', 'section-title', 'Sales decision'));
+        const form = document.createElement('div');
+        form.className = 'form-grid';
+        const statusWrap = document.createElement('div');
+        statusWrap.className = 'form-field';
+        statusWrap.append(makeText('label', '', 'Status'));
+        const statusSelect = document.createElement('select');
+        statusSelect.id = 'editStatus';
+        for (const option of STATUSES) {
+          const node = document.createElement('option');
+          node.value = option.name;
+          node.textContent = option.name;
+          node.selected = lead.status === option.name;
+          statusSelect.append(node);
+        }
+        statusWrap.append(statusSelect);
+        form.append(statusWrap);
+        const ownerWrap = document.createElement('div');
+        ownerWrap.className = 'form-field';
+        ownerWrap.append(makeText('label', '', 'Owner / team'));
+        const ownerInput = document.createElement('input');
+        ownerInput.id = 'editOwner';
+        ownerInput.value = crm.owner || lead.assignedTeam || '';
+        ownerInput.placeholder = 'Assign after calling';
+        ownerWrap.append(ownerInput);
+        form.append(ownerWrap);
+        const notesWrap = document.createElement('div');
+        notesWrap.className = 'form-field full';
+        notesWrap.append(makeText('label', '', 'Internal notes'));
+        const notes = document.createElement('textarea');
+        notes.id = 'editNotes';
+        notes.value = crm.notes || '';
+        notesWrap.append(notes);
+        form.append(notesWrap);
+        const tagsWrap = document.createElement('div');
+        tagsWrap.className = 'form-field full';
+        tagsWrap.append(makeText('label', '', 'Tags, separated by commas'));
+        const tags = document.createElement('input');
+        tags.id = 'editTags';
+        tags.value = (crm.tags || []).join(', ');
+        tagsWrap.append(tags);
+        form.append(tagsWrap);
+        dialogBody.append(form);
+        const actions = document.createElement('div');
+        actions.className = 'dialog-actions';
+        const close = makeText('button', 'button', 'Close');
+        close.type = 'button';
+        close.addEventListener('click', () => dialog.close());
+        const save = makeText('button', 'button button-primary', 'Save changes');
+        save.type = 'button';
+        save.addEventListener('click', () => saveLead(id));
+        actions.append(close, save);
+        dialogBody.append(actions);
+        if (!dialog.open) dialog.showModal();
+        renderPeople();
+        renderBoard();
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+
+    async function saveLead(id) {
+      const payload = {
+        status: document.getElementById('editStatus').value,
+        owner: document.getElementById('editOwner').value,
+        notes: document.getElementById('editNotes').value,
+        tags: document.getElementById('editTags').value.split(',').map((tag) => tag.trim()).filter(Boolean),
+      };
+      const response = await fetch(`/leads/${encodeURIComponent(id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      if (!response.ok) { showToast(`Save failed (${response.status})`); return; }
+      await load();
+      showToast('Lead updated');
+      dialog.close();
+    }
+
+    async function updateStatus(id, status) {
+      const lead = leads.find((item) => item.id === id);
+      if (!lead || lead.status === status) return;
+      const response = await fetch(`/leads/${encodeURIComponent(id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
+      });
+      if (!response.ok) { showToast(`Could not move lead (${response.status})`); return; }
+      await load();
+      showToast(`Moved to ${status}`);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2400);
+    }
+
+    searchEl.addEventListener('input', () => { renderPeople(); renderBoard(); });
+    document.getElementById('refresh').addEventListener('click', load);
+    document.getElementById('closeDialog').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    load();
+    setInterval(load, 30000);
+  </script>
+</body>
+</html>
