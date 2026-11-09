@@ -55,7 +55,7 @@ test('restoring one lead does not clear other cached leads or conversations', ()
   assert.equal(leads.getHistory(restored)[0].content, 'persisted');
 });
 
-test('social media service captures customer type and Instagram before assigning the lead', () => {
+test('social media service captures customer type and Instagram without auto-qualifying', () => {
   const phone = `service-social-${Date.now()}`;
   const first = flow.startServiceFlow(phone, 'social');
   assert.match(first.intro, /complete Social Media Management/);
@@ -64,12 +64,13 @@ test('social media service captures customer type and Instagram before assigning
   const complete = flow.processFlowResponse(phone, 'https://instagram.com/example');
   assert.equal(complete.done, true);
   assert.equal(leads.getLead(phone).service, 'Social Media Management');
-  assert.equal(leads.getLead(phone).assignedTeam, 'Social Media Team');
+  assert.equal(leads.getLead(phone).assignedTeam, null);
+  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_QUALIFIED);
   assert.equal(leads.getLead(phone).serviceDetails.customerType, "I'm a creator/influencer");
   assert.equal(leads.getLead(phone).serviceDetails.instagram, 'https://instagram.com/example');
 });
 
-test('Meta Ads captures business details and goal for the sales team', () => {
+test('Meta Ads captures business details and goal without auto-assigning the lead', () => {
   const phone = `service-ads-${Date.now()}`;
   flow.startServiceFlow(phone, 'ads');
   flow.processFlowResponse(phone, 'Fame Bakery');
@@ -78,7 +79,8 @@ test('Meta Ads captures business details and goal for the sales team', () => {
   flow.processFlowResponse(phone, 'https://instagram.com/famebakery');
   const complete = flow.processFlowResponse(phone, '1');
   assert.equal(complete.done, true);
-  assert.equal(leads.getLead(phone).assignedTeam, 'Sales Team');
+  assert.equal(leads.getLead(phone).assignedTeam, null);
+  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_QUALIFIED);
   assert.equal(leads.getLead(phone).business, 'Fame Bakery');
   assert.equal(leads.getLead(phone).serviceDetails.goal, 'WhatsApp Enquiries');
 });

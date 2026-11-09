@@ -6,17 +6,7 @@ const WELCOME = `Hi! 👋 Welcome to Famebros Studio.
 
 We're here to help you grow your business digitally. 🚀
 
-What service are you looking for?
-
-1️⃣ Social Media Management
-
-2️⃣ Meta Ads & Lead Generation
-
-3️⃣ Photography & Videography
-
-4️⃣ Website Development
-
-5️⃣ Talk to Our Team`;
+What service are you looking for?`;
 
 const ABOUT = `We're a social media marketing and content agency based in Mumbai. We combine strategy, creativity, and performance marketing to grow real businesses.
 
@@ -100,19 +90,19 @@ Email: ${B.email}
 WhatsApp: ${B.whatsappLink}`;
 
 const MAIN_MENU = {
-  header: `${B.name}`,
+  header: `${B.name} • Bot`,
   body: WELCOME,
-  footer: 'Reply with a number or tap an option',
+  footer: 'Tap a service to continue',
   button: 'Choose service',
   sections: [
     {
       title: 'Choose a service',
       rows: [
-        { id: 'service_social', title: 'Social Media Management' },
-        { id: 'service_ads', title: 'Meta Ads & Lead Generation' },
-        { id: 'service_photo', title: 'Photography & Videography' },
-        { id: 'service_website', title: 'Website Development' },
-        { id: 'service_team', title: 'Talk to Our Team' },
+        { id: 'service_social', title: '1️⃣ Social Media Mgmt', description: 'Social Media Management' },
+        { id: 'service_ads', title: '2️⃣ Meta Ads & Leads', description: 'Meta Ads & Lead Generation' },
+        { id: 'service_photo', title: '3️⃣ Photo & Video', description: 'Photography & Videography' },
+        { id: 'service_website', title: '4️⃣ Website Development', description: 'Website Development' },
+        { id: 'service_team', title: '5️⃣ Talk to Our Team', description: 'Talk to Our Team' },
       ],
     },
   ],

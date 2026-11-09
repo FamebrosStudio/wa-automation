@@ -31,7 +31,7 @@ const activeFlows = new Map(); // phone -> { step, data }
 
 const SERVICE_FLOWS = {
   social: {
-    service: 'Social Media Management', team: 'Social Media Team',
+    service: 'Social Media Management',
     intro: 'Great choice! 🚀\n\nAt Famebros Studio, we provide complete Social Media Management, including content planning, professional shoots, reels, creatives, captions and account management.\n\nTo understand your business better, please select:',
     steps: {
       identity: { question: 'Choose the option that best describes you:', options: ['I own a business', "I'm a creator/influencer", "I'm starting a new business"], field: 'customerType', next: 'instagram' },
@@ -39,7 +39,7 @@ const SERVICE_FLOWS = {
     },
   },
   ads: {
-    service: 'Meta Ads & Lead Generation', team: 'Sales Team',
+    service: 'Meta Ads & Lead Generation',
     intro: 'Looking to generate more leads and customers through Meta Ads? 📈\n\nWe can help you run targeted Facebook and Instagram advertising campaigns.\n\nPlease share your Business Name.',
     steps: {
       businessName: { question: 'Please share your Business Name.', field: 'businessName', next: 'location' },
@@ -50,14 +50,14 @@ const SERVICE_FLOWS = {
     },
   },
   photo: {
-    service: 'Photography & Videography', team: 'Production Team',
+    service: 'Photography & Videography',
     intro: 'Let\'s create something amazing! 🎥\n\nWhat type of shoot do you need?',
     steps: {
       shootType: { question: 'What type of shoot do you need?', options: ['Product Shoot', 'Restaurant/Food Shoot', 'Fashion/Model Shoot', 'Brand Promotional Reel', 'Event Coverage', 'Other Shoot'], field: 'shootType', doneReply: 'Thank you! ✅\n\nOur production team will review your requirements and connect with you regarding shoot planning and pricing.' },
     },
   },
   website: {
-    service: 'Website Development', team: 'Website Team',
+    service: 'Website Development',
     intro: 'Let\'s build your online presence! 🌐\n\nWhat type of website are you looking for?',
     steps: {
       websiteType: { question: 'What type of website are you looking for?', options: ['Business Website', 'E-commerce Website', 'Portfolio Website', 'Landing Page', 'Website Redesign', 'Need Guidance'], field: 'websiteType', next: 'businessName' },
@@ -66,7 +66,7 @@ const SERVICE_FLOWS = {
     },
   },
   team: {
-    service: 'Talk to Our Team', team: 'Sales Team',
+    service: 'Talk to Our Team',
     intro: 'Of course! 😊\n\nWe\'re connecting you with our team.\n\nPlease share your name.',
     steps: {
       name: { question: 'Please share your name.', field: 'name', next: 'requirement' },
@@ -138,14 +138,12 @@ function processFlowResponse(phone, text) {
     const lead = leads.getLead(phone);
     leads.updateLead(phone, {
       service: flowDefinition.service,
-      assignedTeam: flowDefinition.team,
-      status: leads.STATUS.QUALIFIED,
       humanRequested: flow.service === 'team',
       business: data.businessName || lead.business,
       name: data.name || lead.name,
       serviceDetails: data,
     });
-    return { reply: stepConfig.doneReply, options: null, done: true, data, service: flowDefinition.service, team: flowDefinition.team };
+    return { reply: stepConfig.doneReply, options: null, done: true, data, service: flowDefinition.service };
   }
 
   if (stepConfig.next) {

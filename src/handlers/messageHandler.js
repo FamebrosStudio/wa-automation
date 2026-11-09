@@ -1,6 +1,5 @@
 const whatsapp = require('../services/whatsapp');
 const K = require('../data/knowledge');
-const config = require('../config');
 const leads = require('../services/leads');
 const flow = require('../services/flow');
 const firestore = require('../services/firestore');
@@ -21,14 +20,14 @@ function cleanupProcessed() {
 
 async function sendMenu(to) {
   sessions.set(to, { last: 'menu' });
-  await whatsapp.text(to, K.WELCOME);
+  await whatsapp.list(to, K.MAIN_MENU);
 }
 
 async function startService(to, id) {
   const serviceKey = SERVICE_IDS[id];
   const firstStep = flow.startServiceFlow(to, serviceKey);
   if (!firstStep) return sendMenu(to);
-  leads.updateLead(to, { service: flow.SERVICE_FLOWS[serviceKey].service, assignedTeam: flow.SERVICE_FLOWS[serviceKey].team });
+  leads.updateLead(to, { service: flow.SERVICE_FLOWS[serviceKey].service });
   await whatsapp.text(to, firstStep.intro);
   if (firstStep.options?.length) await sendFlowChoices(to, firstStep.step, firstStep.options);
 }
@@ -58,25 +57,6 @@ function numberToId(text) {
   return MENU_ORDER[n - 1];
 }
 
-async function notifyTeamQualified(leadSummary) {
-  console.log(`[LEAD:QUALIFIED] ${leadSummary.phone} | interests: ${leadSummary.interests.join(', ')} | msgs: ${leadSummary.messageCount}`);
-  if (leadSummary.humanRequested) {
-    console.log(`[LEAD:QUALIFIED] User requested human contact - priority follow-up needed`);
-  }
-  // Send WhatsApp notification to admin if configured and different from business phone
-  const businessPhone = (config.business.phone || '').replace(/[^0-9]/g, '');
-  if (config.adminPhone && config.adminPhone !== businessPhone) {
-    const msg = `New lead for ${leadSummary.assignedTeam || 'Sales Team'}!\nService: ${leadSummary.service || 'General enquiry'}\nPhone: ${leadSummary.phone}\nName: ${leadSummary.name || 'Not provided'}\nBusiness: ${leadSummary.business || 'Not provided'}\nDetails: ${JSON.stringify(leadSummary.serviceDetails || {}).slice(0, 500)}\nLast message: ${(leadSummary.conversationSummary || '').slice(0, 200)}`;
-    try {
-      await whatsapp.text(config.adminPhone, msg);
-    } catch (e) {
-      console.error('[notify] Failed to send admin notification:', e.message);
-    }
-  } else {
-    console.log(`[LEAD:QUALIFIED] ${leadSummary.phone} | ${leadSummary.status} | interests: ${leadSummary.interests.join(', ') || 'none'} | msgs: ${leadSummary.messageCount} | human: ${leadSummary.humanRequested ? 'Yes' : 'No'}`);
-  }
-}
-
 async function startLeadCapture(from) {
   await whatsapp.text(from, `${flow.startFlow(from)} Type cancel at any time to stop.`);
 }
@@ -87,13 +67,9 @@ async function handleFlowText(from, text) {
   const result = flow.processFlowResponse(from, text);
   if (!result) return false;
   leads.addMessage(from, 'assistant', result.reply);
-  if (result.done) {
-    const summary = { ...leads.getLeadSummary(from), assignedTeam: result.team, service: result.service, serviceDetails: result.data };
-    if (result.team) notifyTeamQualified(summary);
-  }
   await whatsapp.text(from, result.reply);
   if (result.options?.length) await sendFlowChoices(from, result.step, result.options);
-  if (result.done || result.cancelled) {
+  if (result.cancelled) {
     await whatsapp.buttons(from, { body: 'What would you like to do next?', buttons: [
       { id: 'menu', title: 'Main Menu' }, { id: 'contact', title: 'Book a Call' }, { id: 'human', title: 'Talk to Human' },
     ] });
@@ -102,8 +78,24 @@ async function handleFlowText(from, text) {
 }
 
 async function sendFlowChoices(to, step, options) {
-  const labels = options.map((title, index) => `${index + 1}️⃣ ${title}`).join('\n');
-  await whatsapp.text(to, labels);
+  const shortLabels = {
+    "I'm a creator/influencer": 'Creator / influencer',
+    "I'm starting a new business": 'Starting a new business',
+    'WhatsApp Enquiries': 'WhatsApp enquiries',
+    'Lead Form Enquiries': 'Lead form enquiries',
+    'Brand Awareness': 'Brand awareness',
+    'Restaurant/Food Shoot': 'Restaurant/Food shoot',
+    'Fashion/Model Shoot': 'Fashion/Model shoot',
+    'Brand Promotional Reel': 'Brand promo reel',
+  };
+  await whatsapp.list(to, {
+    body: 'Tap an option to continue', button: 'Choose',
+    sections: [{ title: 'Options', rows: options.map((text, index) => ({
+      id: `flow_${step}_${index}`,
+      title: `${index + 1} ${shortLabels[text] || text}`.slice(0, 24),
+      description: text.slice(0, 72),
+    })) }],
+  });
 }
 
 async function handleIncomingInMemory(message, from) {
@@ -115,7 +107,7 @@ async function handleIncomingInMemory(message, from) {
   const firstMessage = !lead.welcomeSent;
   if (firstMessage) {
     leads.updateLead(from, { welcomeSent: true });
-    await whatsapp.text(from, K.WELCOME);
+    await sendMenu(from);
   }
 
   const type = message.type;
@@ -148,12 +140,7 @@ async function handleIncomingInMemory(message, from) {
       }
       let interactionType = null;
       if (id === 'human' || id === 'contact') interactionType = 'human_request';
-      const { status, lead } = leads.classifyLead(from, id, interactionType);
-
-
-      if (status === leads.STATUS.QUALIFIED) {
-        notifyTeamQualified(leads.getLeadSummary(from));
-      }
+      leads.classifyLead(from, id, interactionType);
 
       if (id === 'menu') await sendMenu(from);
       else await sendReply(from, id);
@@ -189,8 +176,7 @@ async function handleIncomingInMemory(message, from) {
       }
       let interactionType = null;
       if (nid === 'human' || nid === 'contact') interactionType = 'human_request';
-      const { status } = leads.classifyLead(from, text, interactionType);
-      if (status === leads.STATUS.QUALIFIED) notifyTeamQualified(leads.getLeadSummary(from));
+      leads.classifyLead(from, text, interactionType);
 
       if (nid === 'menu') await sendMenu(from);
       else if (nid === 'contact') await startLeadCapture(from);
@@ -223,8 +209,7 @@ async function handleIncomingInMemory(message, from) {
     } else if (kw) {
       let interactionType = null;
       if (kw === 'human' || kw === 'contact') interactionType = 'human_request';
-      const { status } = leads.classifyLead(from, text, interactionType);
-      if (status === leads.STATUS.QUALIFIED) notifyTeamQualified(leads.getLeadSummary(from));
+      leads.classifyLead(from, text, interactionType);
       await sendReply(from, kw);
       return;
     }
@@ -233,7 +218,7 @@ async function handleIncomingInMemory(message, from) {
     if (firstMessage) return;
 
     // Fallback - conversational, not template-like
-    const { status } = leads.classifyLead(from, text, null);
+    leads.classifyLead(from, text, null);
     await whatsapp.text(
       from,
       "Hmm, I am not quite sure what you mean. Let me show you the options so you can pick what interests you."
@@ -262,6 +247,7 @@ async function handleIncoming(message, from) {
       if (releaseLease) await releaseLease.assertOwnership();
       if (record) {
         leads.restoreOne(record);
+        leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
         flow.restoreFlow(from, record.activeFlow);
       }
       const result = await handleIncomingInMemory(message, from);
@@ -272,6 +258,7 @@ async function handleIncoming(message, from) {
           if (releaseLease) await releaseLease.assertOwnership();
            const serviceDetails = current.lead.serviceDetails || {};
            await firestore.saveLead({ ...current, activeFlow: flow.snapshotFlow(from), crm: {
+             ...(current.lead.crm || {}),
              owner: current.lead.assignedTeam || '',
              tags: current.lead.service ? [current.lead.service] : [],
              notes: Object.keys(serviceDetails).length ? JSON.stringify(serviceDetails) : '',

@@ -80,20 +80,7 @@ function classifyLead(phone, message, interactionType) {
   let newStatus = lead.status === STATUS.QUALIFIED ? STATUS.QUALIFIED : STATUS.NON_QUALIFIED;
 
   if (interactionType === 'human_request' || /\b(talk to (a )?human|speak (to|with) (a )?(person|agent|team|someone)|connect me|real person|live agent)\b/i.test(text)) {
-    newStatus = STATUS.QUALIFIED;
     lead.humanRequested = true;
-  }
-
-  if (/\b(book|schedule|call|meeting|appointment|consultation|demo|quote|proposal)\b/i.test(text) && /\b(free|discovery|call|meeting|appointment)\b/i.test(text)) {
-    newStatus = STATUS.QUALIFIED;
-  }
-
-  if (lead.business && lead.messageCount >= 3 && lead.interests.length >= 2) {
-    newStatus = STATUS.QUALIFIED;
-  }
-
-  if (lead.messageCount >= 4 && lead.interests.length >= 2) {
-    newStatus = STATUS.QUALIFIED;
   }
 
   if (/\b(no thanks|not interested|just browsing|just looking|no need|don't need|stop|unsubscribe|leave me alone)\b/i.test(text)) {

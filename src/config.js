@@ -8,7 +8,6 @@ module.exports = {
   port: process.env.PORT || 3000,
   googleServiceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '',
   googleServiceAccountKey: process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '',
-  adminPhone: process.env.ADMIN_PHONE || '',
   dashboardUser: process.env.DASHBOARD_USER || 'admin',
   dashboardPassword: process.env.DASHBOARD_PASSWORD || '',
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || 'wa-automation-famebros-phase-1',

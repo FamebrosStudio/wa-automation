@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { matchKeyword } = require('../src/data/knowledge');
+const { matchKeyword, MAIN_MENU, WELCOME } = require('../src/data/knowledge');
 
 test('keyword matching does not treat short substrings as intents', () => {
   assert.equal(matchKeyword('I need advice for a new campaign'), null);
@@ -19,4 +19,13 @@ test('standalone greetings and specific phrases still route', () => {
   assert.equal(matchKeyword('what is your pricing?'), 'packages');
   assert.equal(matchKeyword('who have you worked with?'), 'clients');
   assert.equal(matchKeyword('talk to a human'), 'human');
+});
+
+test('welcome shows clickable service choices with the expected route IDs', () => {
+  const rows = MAIN_MENU.sections.flatMap((section) => section.rows);
+  assert.match(WELCOME, /Hi! 👋 Welcome to Famebros Studio/);
+  assert.deepEqual(rows.map((row) => row.id), [
+    'service_social', 'service_ads', 'service_photo', 'service_website', 'service_team',
+  ]);
+  assert.match(rows[1].description, /Meta Ads & Lead Generation/);
 });

@@ -133,15 +133,16 @@ keys. Do not commit or paste credentials into chat. The database is in
 The included `firestore.rules` denies client access; the app uses the Google
 Cloud Firestore server client with Vercel OIDC credentials. Without valid
 credentials, storage remains in-memory and is not durable. The Basic-Auth-
-protected dashboard shows qualified leads by default, complete service answers
-and conversation history, internal notes, team assignment, and explicit status
-saves. Leads are grouped only as Qualified or Non-qualified. Phone numbers are
-not included in the lead-list response; they appear only in authenticated details.
+protected dashboard lists all enquiries, complete service answers and
+conversation history, internal notes, salesperson/team assignment, and explicit
+status saves. New leads start as Non-qualified; salespeople call and manually
+decide whether to mark them Qualified or Non-qualified. Phone numbers are not
+included in the lead-list response; they appear only in authenticated details.
 
 Webhook processing uses Firestore transactionally acquired per-phone leases and
 durable message-ID records when Firestore is configured. Lease contention or
 storage/processing errors return HTTP 503 so Meta can retry. This coordination
-does not make external WhatsApp/Sheets side effects transactional: a process
+does not make external WhatsApp side effects transactional: a process
 crash after sending a reply but before recording the message can result in a
 repeated side effect on retry. Configure Firestore indexes/permissions and
 monitor lease/storage errors before enabling this path in production; this

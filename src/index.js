@@ -61,6 +61,10 @@ function dashboardAuth(req, res, next) {
 }
 
 const LEAD_STATUSES = ['Qualified', 'Non-qualified'];
+function normalizeLeadStatus(lead) {
+  if (lead && lead.status !== 'Qualified') lead.status = 'Non-qualified';
+  return lead;
+}
 function safeRecordId(id) {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id);
 }
@@ -72,7 +76,7 @@ app.get('/leads/:id', dashboardAuth, async (req, res) => {
       ? await firestore.getLead(req.params.id)
       : leads.snapshot().find((item) => firestore.recordId(item.phone) === req.params.id);
     if (!record) return res.sendStatus(404);
-    const lead = record.lead;
+    const lead = normalizeLeadStatus(record.lead);
     res.json({ id: req.params.id, phone: lead.phone, lead, history: record.history || [], crm: record.crm || localCrm.get(req.params.id) || { owner: lead.assignedTeam || '', tags: lead.service ? [lead.service] : [], notes: JSON.stringify(lead.serviceDetails || {}) } });
   } catch (error) {
     console.error('[firestore] lead detail failed:', error.message);
@@ -121,7 +125,7 @@ app.get('/leads', dashboardAuth, async (req, res) => {
     allLeads = records ? records.map((record) => {
       const id = firestore.recordId(record.phone);
       leadCrm.set(id, record.crm || {});
-      return record.lead;
+      return normalizeLeadStatus(record.lead);
     }) : leads.getAllLeads();
   } catch (error) {
     console.error('[firestore] dashboard read failed:', error.message);
@@ -184,7 +188,8 @@ input,select,textarea{background:#111;color:#eee;border:1px solid #383838;border
 <div class="stat"><div class="n" id="q">-</div><div class="l">Qualified</div></div>
 <div class="stat"><div class="n" id="nq">-</div><div class="l">Non-qualified</div></div>
 </div>
-<div class="filters"><input id="search" placeholder="Search name, business, service, owner or tag"><select id="statusFilter"><option>Qualified</option><option value="">All statuses</option><option>Non-qualified</option></select></div>
+<p class="meta">New enquiries start as Non-qualified. Review their details, call them, then choose Qualified or Non-qualified and assign an owner/team.</p>
+<div class="filters"><input id="search" placeholder="Search name, business, service, owner or tag"><select id="statusFilter"><option value="">All leads</option><option>Qualified</option><option>Non-qualified</option></select></div>
 <div class="layout"><div class="card" id="list"><div class="empty">Loading...</div></div><section class="panel" id="detail"><div class="empty">Select a lead to view details</div></section></div>
 <div class="refresh"><button onclick="load()">Refresh</button></div>
 </div>
@@ -208,7 +213,7 @@ const el=document.getElementById('list');
   const row=document.createElement('div');row.className='row';
  const details=document.createElement('div');
   const name=document.createElement('div');name.className='phone';name.textContent=l.name||l.business||'Lead';
-   const meta=document.createElement('div');meta.className='meta';meta.textContent=(l.service||'General enquiry')+' · '+(l.assignedTeam||'Unassigned')+' · '+(l.messageCount||0)+' msgs · '+(l.lastSeen||'');
+   const meta=document.createElement('div');meta.className='meta';meta.textContent=(l.service||'General enquiry')+' · '+(l.owner||'Unassigned')+' · '+(l.messageCount||0)+' msgs · '+(l.lastSeen||'');
  details.append(name,meta);
   const badge=document.createElement('span');badge.className='badge '+(l.status==='Qualified'?'q':'nq');badge.textContent=l.status||'';
   row.append(details,badge);row.onclick=()=>openLead(l.id);return row;
@@ -222,7 +227,7 @@ const phone=document.createElement('div');phone.className='meta';phone.textConte
 const history=document.createElement('div');history.className='history';(d.history||[]).forEach(m=>{const item=document.createElement('div');item.className='msg';const who=document.createElement('small');who.textContent=m.role+' · '+new Date(m.ts).toLocaleString();item.append(who,document.createTextNode(m.content));history.append(item)});p.append(history);
 const field=(label,id,value,type='text')=>{const l=document.createElement('label');l.textContent=label;const i=document.createElement(type==='textarea'?'textarea':'input');i.id=id;i.value=value||'';p.append(l,i)};
 const sl=document.createElement('label');sl.textContent='Lead status';const sel=document.createElement('select');sel.id='editStatus';['Qualified','Non-qualified'].forEach(v=>{const o=document.createElement('option');o.textContent=v;o.selected=lead.status===v;sel.append(o)});p.append(sl,sel);
-field('Internal notes','notes',crm.notes,'textarea');field('Tags (comma separated)','tags',(crm.tags||[]).join(', '));field('Owner','owner',crm.owner);
+field('Sales owner / assigned team','owner',crm.owner||lead.assignedTeam);field('Internal notes','notes',crm.notes,'textarea');field('Tags (comma separated)','tags',(crm.tags||[]).join(', '));
 const btn=document.createElement('button');btn.className='save';btn.textContent='Save changes';btn.onclick=saveLead;p.append(btn);
 }catch(e){p.textContent=e.message}}
 async function saveLead(){const payload={status:document.getElementById('editStatus').value,notes:document.getElementById('notes').value,tags:document.getElementById('tags').value.split(',').map(x=>x.trim()).filter(Boolean),owner:document.getElementById('owner').value};const r=await fetch('/leads/'+encodeURIComponent(selected),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok){alert('Save failed ('+r.status+')');return}await load();await openLead(selected)}
