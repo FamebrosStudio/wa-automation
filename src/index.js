@@ -48,7 +48,7 @@ app.post('/webhook', async (req, res) => {
           const from = msg.from;
           if (!from) continue;
           if (msg.type === 'unknown') continue;
-          console.log(`[webhook] incoming from ${from} type=${msg.type}`);
+          console.log(`[webhook] incoming from ${from} type=${msg.type} id=${msg.id}`);
           await handleIncoming(msg, from);
         }
       }

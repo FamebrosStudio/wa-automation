@@ -113,9 +113,12 @@ async function handleIncomingInMemory(message, from) {
 
   const lead = leads.getLead(from);
   const firstMessage = !lead.welcomeSent;
+  console.log(`[handler] ${from} firstMessage=${firstMessage} welcomeSent=${lead.welcomeSent}`);
   if (firstMessage) {
     leads.updateLead(from, { welcomeSent: true });
+    console.log(`[handler] ${from} sending welcome menu`);
     await sendMenu(from);
+    console.log(`[handler] ${from} welcome menu sent`);
   }
 
   const type = message.type;
@@ -296,8 +299,11 @@ async function handleIncoming(message, from) {
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
       if (!previouslyStored || isTestNumber) {
+        console.log(`[handler] enrolling ${from} as new lead (test=${isTestNumber})`);
         leads.updateLead(from, { automationEligible: true, contactType: 'New Lead', leadSource: message.referral ? 'Meta referral' : 'WhatsApp', referral: message.referral || null });
         if (firestoreEnabled) await firestore.saveLead(leads.snapshot(from)[0]);
+      } else {
+        console.log(`[handler] ${from} previously stored, eligibility=${eligibility(record || leads.snapshot(from)[0]).allowed}`);
       }
       const body = message.type === 'text' ? (message.text?.body || '').trim() : '';
       const option = interactiveReplyId(message);
