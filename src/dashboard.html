@@ -261,11 +261,11 @@
         title.className = `lane-title text-${status.tone}`;
         title.append(makeText('span', 'dot', ''));
         title.append(makeText('span', '', status.name));
-        head.append(title, makeText('span', 'count', String(items.length)));
+        head.append(title, makeText('span', 'count', `${items.length} ${items.length === 1 ? 'lead' : 'leads'}`));
         lane.append(head);
         const cards = document.createElement('div');
         cards.className = 'lane-list';
-        if (!items.length) cards.append(makeText('div', 'empty-lane', 'Drop a lead here'));
+        if (!items.length) cards.append(makeText('div', 'empty-lane', 'No leads in this stage'));
         for (const lead of items) cards.append(createLeadCard(lead));
         lane.append(cards);
         return lane;

@@ -236,10 +236,21 @@ async function handleIncomingInMemory(message, from) {
 }
 
 async function handleIncoming(message, from) {
-  const firestoreEnabled = firestore.isConfigured();
+  let firestoreEnabled = firestore.isConfigured();
   const previous = phoneQueues.get(from) || Promise.resolve();
   const task = previous.catch(() => {}).then(async () => {
-    const releaseLease = firestoreEnabled ? await firestore.acquirePhoneLease(from) : null;
+    let releaseLease = null;
+    if (firestoreEnabled) {
+      try {
+        releaseLease = await firestore.acquirePhoneLease(from);
+      } catch (error) {
+        // Keep customer replies working during a Firestore/WIF outage. State is
+        // temporary until persistence is restored, but webhook delivery should
+        // not fail before the bot can respond.
+        console.error('[firestore] unavailable; processing this message in memory:', error.message);
+        firestoreEnabled = false;
+      }
+    }
     try {
       if (releaseLease) await releaseLease.assertOwnership();
       if (firestoreEnabled && message.id && await firestore.hasProcessedMessage(message.id)) return;
