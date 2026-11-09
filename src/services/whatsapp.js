@@ -1,5 +1,6 @@
 const axios = require('axios');
 const config = require('../config');
+const { TEST_NUMBERS } = require('./eligibility');
 
 const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 
@@ -8,7 +9,7 @@ async function send(payload) {
   const firestore = require('./firestore');
   const { eligibility } = require('./eligibility');
   if (!firestore.isConfigured()) throw new Error('Durable contact eligibility is unavailable');
-  const decision = eligibility(await firestore.getLeadByPhone(payload.to));
+  const decision = TEST_NUMBERS.has(payload.to) ? { allowed: true } : eligibility(await firestore.getLeadByPhone(payload.to));
   if (!decision.allowed) throw new Error(`Automated send suppressed: ${decision.reason}`);
   if (!config.whatsappToken || !config.phoneNumberId) {
     // Do not acknowledge an inbound webhook as handled when no reply could be sent.

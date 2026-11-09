@@ -3,7 +3,7 @@ const K = require('../data/knowledge');
 const leads = require('../services/leads');
 const flow = require('../services/flow');
 const firestore = require('../services/firestore');
-const { eligibility } = require('../services/eligibility');
+const { eligibility, TEST_NUMBERS } = require('../services/eligibility');
 
 const processed = new Set();
 const sessions = new Map();
@@ -278,7 +278,8 @@ async function handleIncoming(message, from) {
         record = storedRecord;
       }
       if (releaseLease) await releaseLease.assertOwnership();
-      const previouslyStored = Boolean(record || leads.snapshot(from).length);
+      const isTestNumber = TEST_NUMBERS.has(from);
+      const previouslyStored = !isTestNumber && Boolean(record || leads.snapshot(from).length);
       if (record) {
         leads.restoreOne(record);
         leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
@@ -290,11 +291,11 @@ async function handleIncoming(message, from) {
         return { ignored: true, reason: 'qualified-lead' };
       }
       // Menu taps never override an existing contact's suppression policy.
-      if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
+      if (previouslyStored && !isTestNumber && !eligibility(record || leads.snapshot(from)[0]).allowed) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
-      if (!previouslyStored) {
+      if (!previouslyStored || isTestNumber) {
         leads.updateLead(from, { automationEligible: true, contactType: 'New Lead', leadSource: message.referral ? 'Meta referral' : 'WhatsApp', referral: message.referral || null });
         if (firestoreEnabled) await firestore.saveLead(leads.snapshot(from)[0]);
       }
