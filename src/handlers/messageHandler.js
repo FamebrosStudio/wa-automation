@@ -241,7 +241,11 @@ async function handleIncomingInMemory(message, from) {
 }
 
 async function handleIncoming(message, from) {
-  if (process.env.BOT_ENABLED !== 'true') throw new Error('Sales automation is disabled; delivery may be retried');
+  if (firestore.isConfigured()) await firestore.archiveIncoming(message, from);
+  if (process.env.BOT_ENABLED !== 'true') {
+    if (!firestore.isConfigured()) throw new Error('Cannot archive incoming enquiry while automation is disabled');
+    return { ignored: true, reason: 'automation-disabled-archived' };
+  }
   let firestoreEnabled = firestore.isConfigured();
   let storageUnavailable = false;
   const previous = phoneQueues.get(from) || Promise.resolve();

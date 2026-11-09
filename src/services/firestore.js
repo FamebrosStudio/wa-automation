@@ -193,4 +193,16 @@ async function updateCrm(id, changes) {
   return true;
 }
 
-module.exports = { isConfigured, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, acquirePhoneLease, hasProcessedMessage, markMessageProcessed };
+async function archiveIncoming(message, phone) {
+  const db = await database();
+  if (!db || !message.id) throw new Error('Durable inbound storage requires a message ID and database');
+  try {
+    await db.collection('waAutomationInbox').doc(recordId(message.id)).create({
+      phone, message, receivedAt: new Date().toISOString(), status: 'received',
+    });
+  } catch (error) {
+    if (error.code !== 6 && error.code !== 'already-exists') throw error;
+  }
+}
+
+module.exports = { isConfigured, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, archiveIncoming, acquirePhoneLease, hasProcessedMessage, markMessageProcessed };

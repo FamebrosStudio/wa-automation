@@ -16,7 +16,7 @@
 ## Important limitations and blockers
 - A contact absent from this CRM cannot be distinguished from a historic WhatsApp contact. Import/reconcile existing contacts before enabling production. No full history integration verified.
 - Previous automationEligible flags may exist on contacts incorrectly enrolled by earlier menu taps. Reconcile these against client records before reactivation.
-- META_APP_SECRET must be configured securely for signature verification. Never paste secrets into chat.
+- META_APP_SECRET is confirmed absent from Vercel production environment metadata. Configure it securely in Vercel; never paste secrets into chat. Until then production webhooks return 503 before archival, so Meta must retry delivery.
 - Production messaging tests have NOT been run; production must stay disabled until authorized.
 - Firestore production read/write access, dashboard performance and end-to-end flow delivery still need authenticated verification. Unit mocks are not production proof.
 - Current message deduplication does not guarantee exactly-once delivery across crashes between WhatsApp send and Firestore write. An outbox with uncertain-send reconciliation remains necessary.
@@ -31,7 +31,7 @@
 ## Deployment and rollback
 No existing client records are bulk-modified or deleted. New controls use additive fields.
 Keep BOT_ENABLED=false during rollback as previous code contains an old-contact menu bypass; a rollback alone is not a safe reactivation.
-Current OFF handler returns a retryable error rather than pretending enquiries were processed. Meta retry retention is finite; durable inbound queueing remains necessary before an extended shutdown.
+Incoming messages are archived by message ID in waAutomationInbox before policy handling. When disabled, successful archival is acknowledged without sending; archive failures return a retryable error. An operator review/replay interface is still needed; do not automatically replay old inbox messages after activation.
 
 ## Activation prerequisites
 1. Verified client/contact exclusion export and reconciliation.
