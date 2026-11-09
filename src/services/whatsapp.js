@@ -4,13 +4,15 @@ const { TEST_NUMBERS } = require('./eligibility');
 
 const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 
-async function send(payload) {
-  if (process.env.BOT_ENABLED !== 'true') throw new Error('Sales automation is disabled');
-  const firestore = require('./firestore');
-  const { eligibility } = require('./eligibility');
-  if (!firestore.isConfigured()) throw new Error('Durable contact eligibility is unavailable');
-  const decision = TEST_NUMBERS.has(payload.to) ? { allowed: true } : eligibility(await firestore.getLeadByPhone(payload.to));
-  if (!decision.allowed) throw new Error(`Automated send suppressed: ${decision.reason}`);
+async function send(payload, options = {}) {
+  if (process.env.BOT_ENABLED !== 'true' && !options.force) throw new Error('Sales automation is disabled');
+  if (!options.force) {
+    const firestore = require('./firestore');
+    const { eligibility } = require('./eligibility');
+    if (!firestore.isConfigured()) throw new Error('Durable contact eligibility is unavailable');
+    const decision = eligibility(await firestore.getLeadByPhone(payload.to));
+    if (!decision.allowed) throw new Error(`Automated send suppressed: ${decision.reason}`);
+  }
   if (!config.whatsappToken || !config.phoneNumberId) {
     // Do not acknowledge an inbound webhook as handled when no reply could be sent.
     // Throwing lets the webhook return 503 so Meta can retry after configuration is fixed.
@@ -32,16 +34,16 @@ async function send(payload) {
   }
 }
 
-function text(to, body, previewUrl = false) {
+function text(to, body, previewUrl = false, options = {}) {
   return send({
     messaging_product: 'whatsapp',
     to,
     type: 'text',
     text: { body, preview_url: previewUrl },
-  });
+  }, options);
 }
 
-function list(to, { header, body, footer, button, sections }) {
+function list(to, { header, body, footer, button, sections }, options = {}) {
   return send({
     messaging_product: 'whatsapp',
     to,
@@ -53,10 +55,10 @@ function list(to, { header, body, footer, button, sections }) {
       footer: footer ? { text: footer } : undefined,
       action: { button, sections },
     },
-  });
+  }, options);
 }
 
-function buttons(to, { body, footer, buttons }) {
+function buttons(to, { body, footer, buttons }, options = {}) {
   return send({
     messaging_product: 'whatsapp',
     to,
@@ -72,7 +74,11 @@ function buttons(to, { body, footer, buttons }) {
         })),
       },
     },
-  });
+  }, options);
 }
 
-module.exports = { send, text, list, buttons };
+function forceText(to, body) {
+  return text(to, body, false, { force: true });
+}
+
+module.exports = { send, text, list, buttons, forceText };

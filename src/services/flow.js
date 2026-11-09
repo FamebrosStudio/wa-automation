@@ -160,6 +160,8 @@ function processFlowResponse(phone, text) {
       currentWebsite: data.currentWebsite || lead.currentWebsite,
       requirement: data.requirement || lead.requirement,
       serviceDetails: data,
+      conversationStatus: 'COMPLETED',
+      completionMessageSent: false,
     });
     return { reply: stepConfig.doneReply, options: null, done: true, data, service: flowDefinition.service };
   }
@@ -178,6 +180,8 @@ function processFlowResponse(phone, text) {
   if (data.business) lead.business = data.business;
   if (data.budget) lead.budget = data.budget;
   if (data.timeline) lead.timeline = data.timeline;
+  lead.conversationStatus = 'COMPLETED';
+  lead.completionMessageSent = false;
   return { reply: `Thanks ${data.name || ''}! I have your details. Our team will review them and get back to you.`, options: null, done: true, data };
 }
 

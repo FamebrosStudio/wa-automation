@@ -69,11 +69,33 @@ async function startLeadCapture(from) {
   await whatsapp.text(from, `${flow.startFlow(from)} Type cancel at any time to stop.`);
 }
 
+const HUMAN_REQUEST_RE = /\b(call|plz\s+call|please\s+call|call\s+me|can\s+you\s+call|talk\s+to\s+(someone|our\s+team|a\s+human|human|team)|need\s+(a\s+)?human|human\s+support|real\s+person|speak\s+to\s+(someone|our\s+team|a\s+human)|connect\s+me|live\s+agent)\b/i;
+
+function leadResetForNewEnquiry(from) {
+  leads.updateLead(from, {
+    conversationStatus: null,
+    completionMessageSent: false,
+    welcomeSent: false,
+    humanRequested: false,
+    automationEligible: true,
+  });
+  flow.cancelFlow(from);
+}
+
 async function handleFlowText(from, text) {
   // Interactive option IDs are transport values, not customer message content.
   if (!/^flow_[a-z0-9]+_\d+$/i.test(text)) leads.classifyLead(from, text, null);
   const result = flow.processFlowResponse(from, text);
   if (!result) return false;
+  // Completion: send thank-you exactly once, then lock the conversation.
+  if (result.done) {
+    const lead = leads.getLead(from);
+    if (lead.completionMessageSent) return true; // already sent — never resend
+    leads.addMessage(from, 'assistant', result.reply);
+    await whatsapp.text(from, result.reply);
+    leads.updateLead(from, { conversationStatus: 'COMPLETED', completionMessageSent: true });
+    return true;
+  }
   leads.addMessage(from, 'assistant', result.reply);
   await whatsapp.text(from, result.reply);
   if (result.options?.length) await sendFlowChoices(from, result.step, result.options);
@@ -290,41 +312,74 @@ async function handleIncoming(message, from) {
         record = storedRecord;
       }
       if (releaseLease) await releaseLease.assertOwnership();
-      const isTestNumber = TEST_NUMBERS.has(from);
-      const previouslyStored = !isTestNumber && Boolean(record || leads.snapshot(from).length);
-      if (record && !isTestNumber) {
+      const previouslyStored = Boolean(record || leads.snapshot(from).length);
+      if (record) {
         leads.restoreOne(record);
         leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
         flow.restoreFlow(from, record.activeFlow);
       }
-      if (!isTestNumber) {
-        const knownLead = leads.snapshot(from)[0]?.lead;
-        if (knownLead?.status === 'Qualified') {
-          if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
-          return { ignored: true, reason: 'qualified-lead' };
-        }
-        if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
-          console.log(`[handler] ${from} previously stored, eligibility=${eligibility(record || leads.snapshot(from)[0]).allowed}`);
-          if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
-          return { ignored: true, reason: 'existing-contact-not-enrolled' };
-        }
-      }
-      if (!previouslyStored || isTestNumber) {
-        leads.updateLead(from, { automationEligible: true, contactType: 'New Lead', leadSource: message.referral ? 'Meta referral' : 'WhatsApp', referral: message.referral || null });
-        if (firestoreEnabled) await firestore.saveLead(leads.snapshot(from)[0]);
-      }
+      const knownLead = leads.snapshot(from)[0]?.lead;
       const body = message.type === 'text' ? (message.text?.body || '').trim() : '';
       const option = interactiveReplyId(message);
+      const isNewServiceSelection = message.type === 'interactive' && SERVICE_IDS[option] && option !== 'service_team';
+      // Human / call request detection runs before every other check — even for
+      // completed or previously-stored contacts — so it can never be masked.
+      const human = ['human', 'service_team', 'contact'].includes(option) || HUMAN_REQUEST_RE.test(body);
       const optedOut = /^(stop|unsubscribe|not interested|no thanks)$/i.test(body);
-      const human = ['human', 'service_team', 'contact'].includes(option) || /^(human|agent|talk to (a )?human|speak to (your )?team|call me)$/i.test(body);
-      if (optedOut || human) {
+      if (human) {
         flow.cancelFlow(from);
         const current = leads.snapshot(from)[0];
-        const crm = { ...(record?.crm || {}), botPaused: true, humanTakeover: human, optedOut };
-        leads.updateLead(from, { ...(optedOut ? { status: 'Lost', optedOut: true } : { humanRequested: true }), crm });
-        if (firestoreEnabled) await firestore.saveLead({ ...current, activeFlow: null, crm, handover: human ? { status: 'Unassigned', requestedAt: new Date().toISOString() } : null });
+        const alreadyAcked = current?.lead?.humanAckSent || record?.lead?.humanAckSent;
+        const crm = { ...(record?.crm || {}), botPaused: true, humanTakeover: true };
+        leads.updateLead(from, { humanRequested: true, conversationStatus: 'HANDOVER', humanAckSent: true }, );
+        // preserve crm
+        const snap = leads.snapshot(from)[0];
+        if (snap) snap.lead.crm = crm;
+        const handover = { status: 'Unassigned', requestedAt: new Date().toISOString(), callback: true };
+        if (firestoreEnabled && snap) await firestore.saveLead({ ...snap, activeFlow: null, crm, handover });
+        if (!alreadyAcked) {
+          try { await whatsapp.forceText(from, "Thanks for reaching out. I've passed this to our sales team — they'll call you back shortly."); } catch (_) {}
+          leads.addMessage(from, 'assistant', 'Thanks for reaching out. I\'ve passed this to our sales team — they\'ll call you back shortly.');
+        }
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
-        return { ignored: true, reason: optedOut ? 'opted-out' : 'human-handover' };
+        return { ignored: true, reason: 'human-handover' };
+      }
+      if (optedOut) {
+        flow.cancelFlow(from);
+        const current = leads.snapshot(from)[0];
+        const crm = { ...(record?.crm || {}), botPaused: true, optedOut: true };
+        leads.updateLead(from, { status: 'Non-qualified', optedOut: true, conversationStatus: 'OPTED_OUT' });
+        const snap = leads.snapshot(from)[0]; if (snap) snap.lead.crm = crm;
+        if (firestoreEnabled && snap) await firestore.saveLead({ ...snap, activeFlow: null, crm });
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'opted-out' };
+      }
+      if (knownLead?.status === 'Qualified') {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'qualified-lead' };
+      }
+      // Completed conversations stay locked. Only an explicit new-service tap
+      // may start a controlled new enquiry; everything else is silent.
+      if (knownLead?.conversationStatus === 'COMPLETED' || knownLead?.completionMessageSent === true) {
+        if (!isNewServiceSelection) {
+          // Notify salesperson for genuinely important post-completion requests,
+          // but never send an automated customer reply.
+          const isImportant = /\b(price|pricing|cost|proposal|budget|call|quote|demo|sample)\b/i.test(body);
+          if (isImportant && firestoreEnabled) {
+            const snap = leads.snapshot(from)[0];
+            if (snap) await firestore.saveLead({ ...snap, notification: { type: 'post-completion-request', at: new Date().toISOString(), body: body.slice(0, 500) } });
+          }
+          if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+          return { ignored: true, reason: 'completed-flow' };
+        }
+        leadResetForNewEnquiry(from);
+      }
+      if (!previouslyStored) {
+        leads.updateLead(from, { automationEligible: true, contactType: 'New Lead', leadSource: message.referral ? 'Meta referral' : 'WhatsApp', referral: message.referral || null });
+        if (firestoreEnabled) await firestore.saveLead(leads.snapshot(from)[0]);
+      } else if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
       const result = await handleIncomingInMemory(message, from);
       if (releaseLease) await releaseLease.assertOwnership();
