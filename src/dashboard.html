@@ -152,7 +152,20 @@
         <span class="summary-item text-pending"><span class="dot"></span><span id="pendingSummary">0 non-confirmed</span></span>
         <span class="summary-item text-rejected"><span class="dot"></span><span id="rejectedSummary">0 non-qualified</span></span>
       </div>
-      <section id="board" class="board" aria-label="Lead status board"></section>
+      <section id="board" class="board" aria-label="Lead status board">
+        <section class="lane" data-status="Qualified" aria-label="Qualified leads">
+          <div class="lane-head"><div class="lane-title text-qualified"><span class="dot"></span><span>Qualified</span></div><span class="count">0 qualified</span></div>
+          <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
+        </section>
+        <section class="lane" data-status="Non-confirmed" aria-label="Non-confirmed leads">
+          <div class="lane-head"><div class="lane-title text-pending"><span class="dot"></span><span>Non-confirmed</span></div><span class="count">0 non-confirmed</span></div>
+          <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
+        </section>
+        <section class="lane" data-status="Non-qualified" aria-label="Non-qualified leads">
+          <div class="lane-head"><div class="lane-title text-rejected"><span class="dot"></span><span>Non-qualified</span></div><span class="count">0 non-qualified</span></div>
+          <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
+        </section>
+      </section>
     </main>
   </div>
 
