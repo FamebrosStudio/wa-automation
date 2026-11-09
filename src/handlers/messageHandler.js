@@ -283,27 +283,27 @@ async function handleIncoming(message, from) {
       if (releaseLease) await releaseLease.assertOwnership();
       const isTestNumber = TEST_NUMBERS.has(from);
       const previouslyStored = !isTestNumber && Boolean(record || leads.snapshot(from).length);
-      if (record) {
+      if (record && !isTestNumber) {
         leads.restoreOne(record);
         leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
         flow.restoreFlow(from, record.activeFlow);
       }
-      const knownLead = leads.snapshot(from)[0]?.lead;
-      if (knownLead?.status === 'Qualified') {
-        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
-        return { ignored: true, reason: 'qualified-lead' };
-      }
-      // Menu taps never override an existing contact's suppression policy.
-      if (previouslyStored && !isTestNumber && !eligibility(record || leads.snapshot(from)[0]).allowed) {
-        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
-        return { ignored: true, reason: 'existing-contact-not-enrolled' };
+      if (!isTestNumber) {
+        const knownLead = leads.snapshot(from)[0]?.lead;
+        if (knownLead?.status === 'Qualified') {
+          if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+          return { ignored: true, reason: 'qualified-lead' };
+        }
+        if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
+          console.log(`[handler] ${from} previously stored, eligibility=${eligibility(record || leads.snapshot(from)[0]).allowed}`);
+          if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+          return { ignored: true, reason: 'existing-contact-not-enrolled' };
+        }
       }
       if (!previouslyStored || isTestNumber) {
         console.log(`[handler] enrolling ${from} as new lead (test=${isTestNumber})`);
         leads.updateLead(from, { automationEligible: true, contactType: 'New Lead', leadSource: message.referral ? 'Meta referral' : 'WhatsApp', referral: message.referral || null });
         if (firestoreEnabled) await firestore.saveLead(leads.snapshot(from)[0]);
-      } else {
-        console.log(`[handler] ${from} previously stored, eligibility=${eligibility(record || leads.snapshot(from)[0]).allowed}`);
       }
       const body = message.type === 'text' ? (message.text?.body || '').trim() : '';
       const option = interactiveReplyId(message);
