@@ -268,7 +268,7 @@ async function handleIncoming(message, from) {
         record = storedRecord;
       }
       if (releaseLease) await releaseLease.assertOwnership();
-      const knownContact = Boolean(record || leads.snapshot(from).length);
+      const previouslyStored = Boolean(record || leads.snapshot(from).length);
       if (record) {
         leads.restoreOne(record);
         leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
@@ -279,21 +279,14 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'qualified-lead' };
       }
-      const continuingFlow = flow.hasActiveFlow(from);
-      // Existing conversations stay silent unless an explicit text command
-      // or an already-started flow asks the bot to respond. This prevents
-      // stale/old chat activity from triggering replies while preserving live flows.
-      const body = message.type === 'text' ? (message.text?.body || '') : '';
-      const explicitBotRequest = knownContact && /^bot:\s*/i.test(body);
-      if (knownContact && !explicitBotRequest && !continuingFlow) {
+      // Only contacts first seen after this policy was deployed are enrolled.
+      // Older records stay silent, including bot: commands and unfinished flows.
+      if (previouslyStored && knownLead?.automationEligible !== true) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
-        return { ignored: true };
+        return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
-
-      const messageForBot = explicitBotRequest
-        ? { ...message, text: { ...message.text, body: body.replace(/^bot:\s*/i, '').trim() } }
-        : message;
-      const result = await handleIncomingInMemory(messageForBot, from);
+      if (!previouslyStored) leads.updateLead(from, { automationEligible: true });
+      const result = await handleIncomingInMemory(message, from);
       if (releaseLease) await releaseLease.assertOwnership();
       if (firestoreEnabled) {
         const current = leads.snapshot(from)[0];

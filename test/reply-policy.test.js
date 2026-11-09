@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
 
-test('known contacts are ignored unless they explicitly prefix a message with bot:', async () => {
+test('only newly enrolled contacts and their active flows receive automation', async () => {
   const sent = [];
   const whatsapp = {
     text: async (to, body) => sent.push({ type: 'text', to, body }),
@@ -20,28 +20,30 @@ test('known contacts are ignored unless they explicitly prefix a message with bo
 
   try {
     const { handleIncoming } = require('../src/handlers/messageHandler');
-    const phone = '919900001234';
-    await handleIncoming({ id: 'new-1', type: 'text', text: { body: 'hello' } }, phone);
-    const firstContactReplies = sent.length;
-    assert.ok(firstContactReplies > 0, 'first-time sender should receive the welcome menu');
-
-    const ignored = await handleIncoming({ id: 'old-1', type: 'text', text: { body: 'hi' } }, phone);
-    assert.equal(ignored.ignored, true);
-    assert.equal(sent.length, firstContactReplies, 'ordinary messages from a known contact should be ignored');
-
-    await handleIncoming({ id: 'old-2', type: 'text', text: { body: 'bot: hi' } }, phone);
-    assert.ok(sent.length > firstContactReplies, 'bot: prefix should explicitly request a reply');
-
     const leads = require('../src/services/leads');
     const flow = require('../src/services/flow');
-    flow.startServiceFlow(phone, 'website');
-    const beforeFlowReply = sent.length;
-    await handleIncoming({ id: 'flow-1', type: 'text', text: { body: 'Business Website' } }, phone);
-    assert.ok(sent.length > beforeFlowReply, 'an existing contact should receive replies while continuing an active flow');
+    const oldPhone = '919900001111';
+    leads.getLead(oldPhone); // Represents a lead already stored before rollout.
+    flow.startServiceFlow(oldPhone, 'website');
+    const beforeOld = sent.length;
+    const oldResult = await handleIncoming({ id: 'old-1', type: 'text', text: { body: 'bot: hi' } }, oldPhone);
+    assert.equal(oldResult.reason, 'existing-contact-not-enrolled');
+    assert.equal(sent.length, beforeOld, 'old contacts must remain silent, even with bot: or an active flow');
 
-    leads.getLead(phone).status = 'Qualified';
+    const newPhone = '919900001234';
+    await handleIncoming({ id: 'new-1', type: 'text', text: { body: 'hello' } }, newPhone);
+    const firstContactReplies = sent.length;
+    assert.ok(firstContactReplies > beforeOld, 'first-time sender should receive the welcome menu');
+    assert.equal(leads.getLead(newPhone).automationEligible, true);
+
+    flow.startServiceFlow(newPhone, 'website');
+    const beforeFlowReply = sent.length;
+    await handleIncoming({ id: 'flow-1', type: 'text', text: { body: 'Business Website' } }, newPhone);
+    assert.ok(sent.length > beforeFlowReply, 'newly enrolled contacts should receive replies while continuing an active flow');
+
+    leads.getLead(newPhone).status = 'Qualified';
     const beforeQualifiedMessage = sent.length;
-    const qualifiedResult = await handleIncoming({ id: 'qualified-1', type: 'text', text: { body: 'bot: hi' } }, phone);
+    const qualifiedResult = await handleIncoming({ id: 'qualified-1', type: 'text', text: { body: 'hi' } }, newPhone);
     assert.equal(qualifiedResult.reason, 'qualified-lead');
     assert.equal(sent.length, beforeQualifiedMessage, 'qualified contacts must never receive bot replies');
   } finally {
