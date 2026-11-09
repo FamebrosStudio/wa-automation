@@ -2,185 +2,301 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#141415">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#09090b">
   <title>Lead pipeline · Famebros Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      color-scheme: dark;
-      --page: #141415;
-      --sidebar: #0f0f10;
-      --surface: #19191b;
-      --raised: #232325;
-      --line: rgba(237, 237, 237, .08);
-      --line-strong: rgba(237, 237, 237, .14);
-      --text: #ededed;
-      --secondary: #a1a1a6;
-      --muted: #85858b;
-      --accent: #76c998;
-      --qualified: #75c999;
-      --pending: #d6ae70;
-      --rejected: #d98585;
-      --radius-card: 12px;
-      --ease: cubic-bezier(.22, 1, .36, 1);
+    /* shadcn/ui tokens - dark neutral */
+    :root{
+      color-scheme:dark;
+      --background:#09090b;
+      --foreground:#fafafa;
+      --card:#18181b;
+      --card-foreground:#fafafa;
+      --primary:#10b981;
+      --primary-foreground:#18181b;
+      --secondary:#27272a;
+      --muted:#27272a;
+      --muted-foreground:#a1a1aa;
+      --accent:#27272a;
+      --accent-foreground:#fafafa;
+      --border:#27272a;
+      --input:#27272a;
+      --ring:#10b981;
+      --radius:0.625rem;
+      --qualified:#22c55e;
+      --pending:#eab308;
+      --rejected:#ef4444;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--page); color: var(--text); font: 400 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-    button, input, select, textarea { font: inherit; }
-    button { color: inherit; }
-    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .app { min-height: 100vh; display: grid; grid-template-columns: 256px minmax(0, 1fr); }
-    .sidebar { min-width: 0; background: var(--sidebar); border-right: 1px solid var(--line); padding: 20px 16px 16px; display: flex; flex-direction: column; }
-    .brand { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 4px 20px; border-bottom: 1px solid var(--line); }
-    .brand-mark { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--accent); font-size: 14px; font-weight: 600; }
-    .brand-name { font-size: 15px; font-weight: 500; letter-spacing: 0; }
-    .brand-subtitle { margin-top: 1px; color: var(--muted); font-size: 12px; }
-    .sidebar-heading { display: flex; justify-content: space-between; align-items: center; margin: 20px 4px 10px; color: var(--secondary); font-size: 12px; }
-    .quiet-count, .count { color: var(--muted); font-variant-numeric: tabular-nums; }
-    .search { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); outline: none; }
-    .search::placeholder { color: var(--muted); }
-    .search:focus { border-color: rgba(118, 201, 152, .55); }
-    .people { display: grid; gap: 4px; overflow: auto; margin: 10px -4px 0; padding: 0 4px; }
-    .person { width: 100%; min-height: 48px; padding: 7px 8px; display: flex; gap: 10px; align-items: center; text-align: left; border: 1px solid transparent; border-radius: 8px; background: transparent; cursor: pointer; transition: background-color 140ms var(--ease), border-color 140ms var(--ease); }
-    .person:hover, .person.is-selected { background: var(--raised); border-color: var(--line); }
-    .avatar { flex: 0 0 30px; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--secondary); background: #202022; font-size: 11px; font-weight: 500; }
-    .person-copy { min-width: 0; }
-    .person-name { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-    .person-service { overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-    .person-entry { min-width: 0; }
-    .assign-menu { display: grid; gap: 4px; margin: 3px 0 7px 38px; padding: 7px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--raised); }
-    .assign-menu-label { padding: 2px 4px 4px; color: var(--muted); font-size: 10px; }
-    .assign-option { min-height: 30px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text); text-align: left; font-size: 11px; cursor: pointer; }
-    .assign-option:hover { border-color: var(--line); background: #303033; }
-    .sidebar-footer { margin-top: auto; padding: 14px 4px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
-    .main { min-width: 0; padding: 28px 28px 24px; }
-    .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
-    h1 { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 500; letter-spacing: -.02em; }
-    .intro { margin: 6px 0 0; color: var(--secondary); font-size: 13px; }
-    .head-actions { display: flex; gap: 8px; align-items: center; }
-    .button { min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--raised); color: var(--text); cursor: pointer; transition: background-color 140ms var(--ease), border-color 140ms var(--ease); }
-    .button:hover { background: #2b2b2e; border-color: rgba(237, 237, 237, .22); }
-    .button-primary { border-color: transparent; background: var(--accent); color: #102017; font-weight: 500; }
-    .button-primary:hover { background: #8bd5a9; }
-    .pipeline-summary { display: flex; align-items: center; gap: 18px; margin: 0 0 16px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-    .summary-item { display: inline-flex; align-items: center; gap: 7px; }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-    .text-qualified { color: var(--qualified); }
-    .text-pending { color: var(--pending); }
-    .text-rejected { color: var(--rejected); }
-    .board { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); align-items: start; gap: 12px; min-height: 62vh; }
-    .lane { min-width: 0; min-height: 62vh; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(25, 25, 27, .56); transition: border-color 140ms var(--ease), background-color 140ms var(--ease); }
-    .lane.is-over { border-color: rgba(118, 201, 152, .5); background: rgba(118, 201, 152, .045); }
-    .lane-head { display: flex; justify-content: space-between; align-items: center; min-height: 28px; margin: 0 2px 12px; }
-    .lane-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
-    .lane-title .dot { width: 8px; height: 8px; }
-    .lane-list { display: grid; align-content: start; gap: 8px; min-height: 52vh; }
-    .lead-card { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); color: var(--text); text-align: left; cursor: grab; transition: background-color 140ms var(--ease), border-color 140ms var(--ease), transform 140ms var(--ease); }
-    .lead-card:hover { background: #202022; border-color: var(--line-strong); }
-    .lead-card:active { cursor: grabbing; transform: scale(.99); }
-    .lead-card.is-selected { border-color: rgba(118, 201, 152, .48); }
-    .lead-card.is-dragging { opacity: .42; }
-    .lead-card-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
-    .lead-name { overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
-    .lead-business { margin-top: 2px; color: var(--secondary); font-size: 12px; overflow-wrap: anywhere; }
-    .lead-service { display: inline-block; max-width: 100%; overflow: hidden; margin-top: 10px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-    .lead-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 11px; }
-    .lead-owner { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .empty-lane { padding: 20px 10px; color: var(--muted); font-size: 12px; text-align: center; }
-    .status-select { width: 100%; height: 36px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); }
-    dialog { width: min(720px, calc(100vw - 32px)); max-width: none; max-height: min(88vh, 900px); padding: 0; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface); color: var(--text); box-shadow: 0 24px 80px rgba(0, 0, 0, .42); }
-    dialog::backdrop { background: rgba(0, 0, 0, .66); backdrop-filter: blur(2px); }
-    .dialog-shell { display: flex; flex-direction: column; max-height: min(88vh, 900px); }
-    .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 20px 22px 16px; border-bottom: 1px solid var(--line); }
-    .dialog-title { margin: 0; font-size: 20px; line-height: 1.25; font-weight: 500; }
-    .dialog-subtitle { margin-top: 5px; color: var(--secondary); font-size: 12px; }
-    .icon-button { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--secondary); cursor: pointer; }
-    .icon-button:hover { background: var(--raised); color: var(--text); }
-    .dialog-body { overflow: auto; padding: 18px 22px 22px; }
-    .details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .detail-field { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #1d1d1f; }
-    .detail-label { color: var(--muted); font-size: 11px; }
-    .detail-value { margin-top: 5px; color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
-    .detail-value a { color: var(--accent); text-decoration: none; }
-    .section-title { margin: 20px 0 8px; color: var(--secondary); font-size: 12px; font-weight: 500; }
-    .conversation { display: grid; gap: 6px; max-height: 240px; overflow: auto; }
-    .message { padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: #1d1d1f; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .message-meta { display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; }
-    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .form-field { display: grid; gap: 5px; min-width: 0; }
-    .form-field.full { grid-column: 1 / -1; }
-    .form-field label { color: var(--secondary); font-size: 12px; }
-    .form-field input, .form-field select, .form-field textarea { width: 100%; min-height: 36px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: #151517; color: var(--text); }
-    .form-field textarea { min-height: 72px; resize: vertical; }
-    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-    .toast { position: fixed; right: 20px; bottom: 20px; z-index: 3; padding: 10px 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--raised); color: var(--text); font-size: 13px; opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity 160ms var(--ease), transform 160ms var(--ease); }
-    .toast.is-visible { opacity: 1; transform: translateY(0); }
-    .loading, .empty-list { padding: 18px 10px; color: var(--muted); font-size: 12px; }
-    .credit { color: var(--muted); font-size: 10px; }
-    @media (max-width: 1050px) { .app { grid-template-columns: 220px minmax(0, 1fr); } .main { padding: 24px 20px; } .board { grid-template-columns: repeat(3, minmax(205px, 1fr)); overflow-x: auto; } }
-    @media (max-width: 760px) {
-      .app { grid-template-columns: 1fr; }
-      .sidebar { padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
-      .brand { min-height: 32px; padding-bottom: 10px; }
-      .sidebar-heading { margin: 10px 4px 7px; }
-      .people { display: flex; max-height: 60px; overflow-x: auto; overflow-y: hidden; }
-      .person { width: 180px; flex: 0 0 180px; }
-      .sidebar-footer { display: none; }
-      .main { padding: 20px 16px; }
-      .page-head { align-items: flex-start; flex-direction: column; margin-bottom: 18px; }
-      h1 { font-size: 24px; }
-      .board { grid-template-columns: repeat(3, minmax(250px, 82vw)); min-height: 58vh; }
-      .lane { min-height: 58vh; }
-      .details-grid, .form-grid { grid-template-columns: 1fr; }
-      .form-field.full { grid-column: auto; }
+    *{box-sizing:border-box}
+    html{-webkit-font-smoothing:antialiased}
+    body{margin:0;min-height:100vh;background:var(--background);color:var(--foreground);font:400 14px/1.5 Inter,system-ui,sans-serif}
+    button,input,select,textarea{font:inherit}
+    button{color:inherit}
+    :focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:6px}
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:999px}
+    ::-webkit-scrollbar-track{background:transparent}
+
+    /* App shell - shadcn sidebar + main */
+    .app{min-height:100vh;display:grid;grid-template-columns:280px minmax(0,1fr)}
+
+    /* Shadcn Sidebar */
+    .sidebar{border-right:1px solid var(--border);background:#101012;display:flex;flex-direction:column;height:100vh;position:sticky;top:0;padding:16px}
+    .brand{display:flex;align-items:center;gap:10px;padding:4px 4px 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
+    .brand-mark{width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:var(--primary);color:#09090b;font-weight:700;font-size:15px}
+    .brand-name{font-weight:600;font-size:14px;line-height:1.2}
+    .brand-subtitle{font-size:12px;color:var(--muted-foreground)}
+    .sidebar-heading{display:flex;justify-content:space-between;align-items:center;margin:16px 4px 8px;color:var(--muted-foreground);font-size:12px;font-weight:500;letter-spacing:.02em;text-transform:uppercase}
+
+    /* Input group - shadcn */
+    .input-group{position:relative;display:flex;align-items:center}
+    .input-group svg{position:absolute;left:10px;width:16px;height:16px;color:var(--muted-foreground);pointer-events:none}
+    .search{width:100%;height:36px;padding:0 10px 0 32px;border:1px solid var(--input);border-radius:8px;background:var(--background);color:var(--foreground);outline:none;font-size:13px}
+    .search::placeholder{color:var(--muted-foreground)}
+    .search:focus{border-color:var(--ring);box-shadow:0 0 0 3px rgba(16,185,129,.15)}
+
+    /* Scroll area */
+    .people{flex:1;overflow:auto;margin:8px -4px 0;padding:0 4px;display:flex;flex-direction:column;gap:2px}
+    .person{width:100%;display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:8px;border:1px solid transparent;background:transparent;cursor:pointer;text-align:left;transition:all .15s}
+    .person:hover{background:var(--muted)}
+    .person.is-selected{background:var(--muted);border-color:var(--border)}
+    .avatar{flex:0 0 32px;width:32px;height:32px;display:grid;place-items:center;border-radius:999px;background:var(--secondary);color:var(--foreground);font-size:11px;font-weight:600;border:1px solid var(--border)}
+    .person-copy{min-width:0;flex:1}
+    .person-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;font-weight:500}
+    .person-service{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;color:var(--muted-foreground)}
+    .person-entry{animation:fadeIn .3s ease both}
+
+    /* Dropdown menu - shadcn */
+    .assign-menu{margin:2px 0 6px 42px;padding:4px;border:1px solid var(--border);border-radius:8px;background:#18181b;box-shadow:0 10px 15px -3px rgba(0,0,0,.5)}
+    .assign-menu-label{padding:6px 8px;color:var(--muted-foreground);font-size:11px;font-weight:500}
+    .assign-option{display:flex;width:100%;align-items:center;gap:8px;min-height:32px;padding:6px 8px;border-radius:6px;background:transparent;border:0;color:var(--foreground);font-size:13px;cursor:pointer;text-align:left}
+    .assign-option:hover{background:var(--accent)}
+    .assign-option:focus-visible{outline:2px solid var(--ring)}
+
+    /* Skeleton + Empty */
+    .skeleton{height:48px;border-radius:8px;background:linear-gradient(90deg,#27272a 25%,#3f3f46 50%,#27272a 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+    .empty{padding:24px 12px;text-align:center;color:var(--muted-foreground);font-size:13px}
+    .empty-icon{width:32px;height:32px;margin:0 auto 8px;display:grid;place-items:center;border:1px solid var(--border);border-radius:8px;color:var(--muted-foreground)}
+    .sidebar-footer{padding-top:12px;border-top:1px solid var(--border);margin-top:12px}
+
+    /* Main */
+    .main{min-width:0;display:flex;flex-direction:column;height:100vh}
+    .sticky-header{position:sticky;top:0;z-index:20;padding:16px 20px 12px;background:linear-gradient(to bottom,rgba(9,9,11,.95) 60%,rgba(9,9,11,.0));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .gradual-blur{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom,rgba(9,9,11,.9),transparent)}
+    .page-head{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.02em}
+    .intro{margin:4px 0 0;color:var(--muted-foreground);font-size:13px}
+    .head-actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
+
+    /* Button variants - shadcn */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;font-weight:500;font-size:13px;border-radius:8px;cursor:pointer;transition:all .15s;padding:0 12px;height:32px;border:1px solid transparent}
+    .btn:active{transform:scale(.98)}
+    .btn-secondary{background:var(--secondary);color:var(--foreground);border-color:var(--border)}
+    .btn-secondary:hover{background:#3f3f46}
+    .btn-primary{background:var(--primary);color:var(--primary-foreground)}
+    .btn-primary:hover{opacity:.9}
+    .btn-ghost{background:transparent;color:var(--muted-foreground)}
+    .btn-ghost:hover{background:var(--accent);color:var(--foreground)}
+    .btn-outline{background:transparent;border-color:var(--border);color:var(--foreground)}
+    .btn-outline:hover{background:var(--accent)}
+    .btn-sm{height:28px;padding:0 10px;font-size:12px}
+    .btn[disabled]{opacity:.5;pointer-events:none}
+    .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:currentColor;border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Pipeline summary as badges */
+    .pipeline-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .summary-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--card);font-size:12px;color:var(--muted-foreground)}
+    .summary-badge .dot{width:6px;height:6px;border-radius:50%}
+    .dot-qualified{background:var(--qualified)} .dot-pending{background:var(--pending)} .dot-rejected{background:var(--rejected)}
+
+    /* Mobile tabs - shadcn Tabs */
+    .mobile-tabs{display:none;padding:8px 20px;border-bottom:1px solid var(--border);background:#101012}
+    .tabs-list{display:inline-flex;width:100%;height:36px;align-items:center;justify-content:center;border-radius:8px;background:var(--muted);padding:4px;color:var(--muted-foreground)}
+    .tab{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;border-radius:6px;border:0;background:transparent;color:var(--muted-foreground);font-size:12px;font-weight:500;cursor:pointer}
+    .tab[data-active="true"]{background:var(--background);color:var(--foreground);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+    /* Board */
+    .board-wrap{flex:1;overflow:auto;padding:16px 20px}
+    .board{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:12px;align-items:start}
+    .lane{min-height:calc(100vh - 220px);padding:12px;border:1px solid var(--border);border-radius:12px;background:#101012;transition:border-color .15s}
+    .lane.is-over{border-color:var(--primary);background:rgba(16,185,129,.04)}
+    .lane-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .lane-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+    .count{color:var(--muted-foreground);font-size:12px;font-variant-numeric:tabular-nums}
+
+    /* Lead Card - shadcn Card */
+    .lead-card{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--card-foreground);text-align:left;cursor:grab;transition:all .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+    .lead-card:hover{border-color:#3f3f46;background:#1c1c1f;transform:translateY(-1px)}
+    .lead-card:active{cursor:grabbing;transform:scale(.99)}
+    .lead-card.is-selected{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+    .lead-card.is-dragging{opacity:.5}
+    .lead-card-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .lead-name{font-size:14px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .lead-business{margin-top:2px;color:var(--muted-foreground);font-size:12px;overflow-wrap:anywhere}
+    .badge{display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--border);padding:2px 8px;font-size:11px;font-weight:500;margin-top:10px}
+    .badge-qualified{background:rgba(34,197,94,.1);color:#4ade80;border-color:rgba(34,197,94,.2)}
+    .badge-pending{background:rgba(234,179,8,.1);color:#facc15;border-color:rgba(234,179,8,.2)}
+    .badge-rejected{background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.2)}
+    .lead-meta{display:flex;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);color:var(--muted-foreground);font-size:11px}
+    .empty-lane{padding:24px 12px;text-align:center;color:var(--muted-foreground);font-size:12px;border:1px dashed var(--border);border-radius:8px}
+
+    /* Dialog / Drawer - shadcn */
+    dialog{width:min(720px,calc(100vw - 32px));max-width:none;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--card-foreground);box-shadow:0 25px 50px -12px rgba(0,0,0,.8)}
+    dialog::backdrop{background:rgba(0,0,0,.85);backdrop-filter:blur(4px)}
+    .dialog-shell{display:flex;flex-direction:column;max-height:88vh}
+    .dialog-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:20px 20px 12px;border-bottom:1px solid var(--border)}
+    .dialog-title{margin:0;font-size:16px;font-weight:600}
+    .dialog-subtitle{margin-top:4px;color:var(--muted-foreground);font-size:12px}
+    .dialog-body{overflow:auto;padding:16px 20px 20px}
+    .icon-btn{width:32px;height:32px;display:grid;place-items:center;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--muted-foreground);cursor:pointer}
+    .icon-btn:hover{background:var(--accent);color:var(--foreground)}
+
+    .details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .detail-field{padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#101012}
+    .detail-label{color:var(--muted-foreground);font-size:11px;font-weight:500}
+    .detail-value{margin-top:4px;font-size:13px;overflow-wrap:anywhere}
+    .detail-value a{color:var(--primary);text-decoration:none}
+    .section-title{margin:20px 0 8px;color:var(--muted-foreground);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+    .conversation{display:grid;gap:6px;max-height:240px;overflow:auto}
+    .message{padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#101012;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+    .message-meta{display:block;margin-bottom:4px;color:var(--muted-foreground);font-size:11px}
+
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .form-field{display:grid;gap:6px;min-width:0}
+    .form-field.full{grid-column:1/-1}
+    .form-field label{color:var(--muted-foreground);font-size:12px;font-weight:500}
+    .form-field input,.form-field select,.form-field textarea{width:100%;min-height:36px;padding:8px 10px;border:1px solid var(--input);border-radius:8px;background:var(--background);color:var(--foreground);font-size:13px;outline:none}
+    .form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--ring);box-shadow:0 0 0 3px rgba(16,185,129,.15)}
+    .form-field textarea{min-height:72px;resize:vertical}
+
+    /* Switch - shadcn */
+    .switch-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#101012}
+    .switch-label{font-size:13px;font-weight:500}
+    .switch-desc{font-size:11px;color:var(--muted-foreground)}
+    .switch{position:relative;width:36px;height:20px;flex-shrink:0}
+    .switch input{appearance:none;width:100%;height:100%;border-radius:999px;background:#3f3f46;cursor:pointer;transition:.2s;outline:none;margin:0}
+    .switch input:checked{background:var(--primary)}
+    .switch input::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+    .switch input:checked::after{left:18px}
+
+    .dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+    .separator{height:1px;background:var(--border);margin:12px 0}
+
+    /* Sonner - toast */
+    .toast{position:fixed;right:16px;bottom:16px;z-index:50;display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:#18181b;color:var(--foreground);font-size:13px;box-shadow:0 10px 15px -3px rgba(0,0,0,.5);opacity:0;transform:translateY(8px);pointer-events:none;transition:all .25s}
+    .toast.is-visible{opacity:1;transform:translateY(0);pointer-events:auto}
+    .toast-dot{width:8px;height:8px;border-radius:50%;background:var(--qualified);flex-shrink:0}
+
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .fade-in{animation:fadeIn .3s ease both}
+
+    /* Mobile - breakpoints like shadcn */
+    @media(max-width:1050px){
+      .app{grid-template-columns:240px minmax(0,1fr)}
+      .board{grid-template-columns:repeat(3,minmax(220px,1fr));overflow-x:auto}
     }
-    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+    @media(max-width:760px){
+      .app{grid-template-columns:1fr}
+      .sidebar{display:none}
+      .sidebar.open{display:flex;position:fixed;inset:0;z-index:40;height:100dvh;background:#09090b}
+      .main{height:100dvh}
+      .mobile-tabs{display:block}
+      .sticky-header{padding:12px 16px 8px}
+      .board-wrap{padding:12px 16px}
+      .board{grid-template-columns:1fr;overflow:visible}
+      .lane{min-height:auto;padding:10px}
+      .lane-list{display:grid;gap:8px}
+      .details-grid,.form-grid{grid-template-columns:1fr}
+      .dialog-shell{max-height:100dvh}
+      dialog{width:100%;max-width:none;border-radius:16px 16px 0 0;border-bottom:0;margin:auto 0 0 0;max-height:92dvh;animation:slideUp .3s ease}
+      @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+      .head-actions .btn{height:32px}
+      h1{font-size:18px}
+    }
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}}
   </style>
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar" aria-label="Lead navigation">
-      <div class="brand"><div class="brand-mark" aria-hidden="true">F</div><div><div class="brand-name">Famebros Studio</div><div class="brand-subtitle">Sales desk</div></div></div>
+    <!-- Sidebar - shadcn Sidebar -->
+    <aside class="sidebar" id="sidebar" aria-label="Lead navigation">
+      <div class="brand">
+        <div class="brand-mark">F</div>
+        <div><div class="brand-name">Famebros Studio</div><div class="brand-subtitle">Sales desk</div></div>
+      </div>
       <div class="sidebar-heading"><span>New entries</span><span id="peopleCount" class="quiet-count">0</span></div>
-      <input id="search" class="search" type="search" placeholder="Search new entries" aria-label="Search new entries">
-      <nav id="people" class="people" aria-label="People list"><div class="loading">Loading leads</div></nav>
-      <div class="sidebar-footer"><span class="credit">Interface direction adapted from unslop by @heydamir · CC BY 4.0</span></div>
+      <div class="input-group">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="search" class="search" type="search" placeholder="Search leads..." aria-label="Search leads">
+      </div>
+      <nav id="people" class="people" aria-label="People list">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </nav>
     </aside>
 
     <main class="main">
-      <header class="page-head">
-        <div><h1>Lead pipeline</h1><p class="intro">Review the conversation, call the client, then set a status</p></div>
-        <div class="head-actions"><button id="refresh" class="button" type="button">Refresh</button></div>
-      </header>
-      <div class="pipeline-summary" aria-live="polite">
-        <span class="summary-item text-qualified"><span class="dot"></span><span id="qualifiedSummary">0 qualified</span></span>
-        <span class="summary-item text-pending"><span class="dot"></span><span id="pendingSummary">0 non-confirmed</span></span>
-        <span class="summary-item text-rejected"><span class="dot"></span><span id="rejectedSummary">0 non-qualified</span></span>
+      <div class="sticky-header">
+        <header class="page-head">
+          <div>
+            <h1>Lead pipeline</h1>
+            <p class="intro">Review, call, then set a status</p>
+            <div class="pipeline-summary" aria-live="polite">
+              <span class="summary-badge"><span class="dot dot-qualified"></span><span id="qualifiedSummary">0 qualified</span></span>
+              <span class="summary-badge"><span class="dot dot-pending"></span><span id="pendingSummary">0 non-confirmed</span></span>
+              <span class="summary-badge"><span class="dot dot-rejected"></span><span id="rejectedSummary">0 non-qualified</span></span>
+            </div>
+          </div>
+          <div class="head-actions">
+            <button id="mobileNewBtn" class="btn btn-secondary btn-sm" type="button" style="display:none">New <span id="mobileNewCount">0</span></button>
+            <button id="refresh" class="btn btn-secondary" type="button"><span id="refreshText">Refresh</span></button>
+          </div>
+        </header>
       </div>
-      <section id="board" class="board" aria-label="Lead status board">
-        <section class="lane" data-status="Qualified" aria-label="Qualified leads">
-          <div class="lane-head"><div class="lane-title text-qualified"><span class="dot"></span><span>Qualified</span></div><span class="count">0 qualified</span></div>
-          <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
+
+      <!-- Mobile Tabs -->
+      <div class="mobile-tabs">
+        <div class="tabs-list" id="mobileTabs">
+          <button class="tab" data-tab="Qualified" data-active="true" type="button">Qualified</button>
+          <button class="tab" data-tab="Non-confirmed" data-active="false" type="button">Non-confirmed</button>
+          <button class="tab" data-tab="Non-qualified" data-active="false" type="button">Non-qualified</button>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <section id="board" class="board" aria-label="Lead status board">
+          <section class="lane" data-status="Qualified" aria-label="Qualified leads">
+            <div class="lane-head"><div class="lane-title"><span class="dot dot-qualified"></span><span>Qualified</span></div><span class="count">0 qualified</span></div>
+            <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
+          </section>
+          <section class="lane" data-status="Non-confirmed" aria-label="Non-confirmed leads">
+            <div class="lane-head"><div class="lane-title"><span class="dot dot-pending"></span><span>Non-confirmed</span></div><span class="count">0 non-confirmed</span></div>
+            <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
+          </section>
+          <section class="lane" data-status="Non-qualified" aria-label="Non-qualified leads">
+            <div class="lane-head"><div class="lane-title"><span class="dot dot-rejected"></span><span>Non-qualified</span></div><span class="count">0 non-qualified</span></div>
+            <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
+          </section>
         </section>
-        <section class="lane" data-status="Non-confirmed" aria-label="Non-confirmed leads">
-          <div class="lane-head"><div class="lane-title text-pending"><span class="dot"></span><span>Non-confirmed</span></div><span class="count">0 non-confirmed</span></div>
-          <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
-        </section>
-        <section class="lane" data-status="Non-qualified" aria-label="Non-qualified leads">
-          <div class="lane-head"><div class="lane-title text-rejected"><span class="dot"></span><span>Non-qualified</span></div><span class="count">0 non-qualified</span></div>
-          <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
-        </section>
-      </section>
+      </div>
     </main>
   </div>
 
+  <!-- Dialog / Drawer -->
   <dialog id="leadDialog" aria-labelledby="dialogTitle">
     <div class="dialog-shell">
-      <header class="dialog-head"><div><h2 id="dialogTitle" class="dialog-title">Lead details</h2><div id="dialogSubtitle" class="dialog-subtitle"></div></div><button id="closeDialog" class="icon-button" type="button" aria-label="Close details">×</button></header>
+      <header class="dialog-head">
+        <div><h2 id="dialogTitle" class="dialog-title">Lead details</h2><div id="dialogSubtitle" class="dialog-subtitle"></div></div>
+        <button id="closeDialog" class="icon-btn" type="button" aria-label="Close details">×</button>
+      </header>
       <div id="dialogBody" class="dialog-body"></div>
     </div>
   </dialog>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"><span class="toast-dot"></span><span id="toastText"></span></div>
 
   <script>
     const STATUSES = [
@@ -192,18 +308,36 @@
     let selectedId = null;
     let openAssignFor = null;
     let loadPromise = null;
+    let activeTab = 'Qualified';
     let toastTimer;
     const peopleEl = document.getElementById('people');
     const boardEl = document.getElementById('board');
     const searchEl = document.getElementById('search');
     const dialog = document.getElementById('leadDialog');
     const dialogBody = document.getElementById('dialogBody');
+    const sidebarEl = document.getElementById('sidebar');
+
+    // Mobile tabs
+    document.getElementById('mobileTabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('.tab');
+      if (!tab) return;
+      activeTab = tab.dataset.tab;
+      document.querySelectorAll('#mobileTabs .tab').forEach(t => t.dataset.active = t === tab ? 'true' : 'false');
+      renderBoard();
+    });
+
+    // Mobile new leads drawer
+    document.getElementById('mobileNewBtn').addEventListener('click', () => sidebarEl.classList.toggle('open'));
 
     function load() {
       if (loadPromise) return loadPromise;
       loadPromise = (async () => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 12000);
+        const refreshBtn = document.getElementById('refresh');
+        const refreshText = document.getElementById('refreshText');
+        refreshBtn.disabled = true;
+        refreshText.innerHTML = '<span class="spinner"></span> Loading';
         try {
           const response = await fetch('/leads', { cache: 'no-store', signal: controller.signal });
           if (!response.ok) throw new Error(`Could not load leads (${response.status})`);
@@ -213,81 +347,82 @@
           renderPeople();
           renderBoard();
         } catch (error) {
-          if (!leads.length) peopleEl.replaceChildren(makeText('div', 'empty-list', error.name === 'AbortError' ? 'Lead loading timed out. Try Refresh.' : error.message));
+          if (!leads.length) peopleEl.replaceChildren(makeText('div', 'empty', error.name === 'AbortError' ? 'Lead loading timed out. Try Refresh.' : error.message));
           showToast(error.name === 'AbortError' ? 'Dashboard request timed out' : error.message);
         } finally {
           clearTimeout(timeout);
           loadPromise = null;
+          refreshBtn.disabled = false;
+          refreshText.textContent = 'Refresh';
         }
       })();
       return loadPromise;
     }
 
     function renderSummary() {
-      document.getElementById('qualifiedSummary').textContent = `${leads.filter((lead) => lead.status === 'Qualified').length} qualified`;
-      document.getElementById('pendingSummary').textContent = `${leads.filter((lead) => lead.status === 'Non-confirmed').length} non-confirmed`;
-      document.getElementById('rejectedSummary').textContent = `${leads.filter((lead) => lead.status === 'Non-qualified').length} non-qualified`;
+      const q = leads.filter(l => l.status === 'Qualified').length;
+      const nc = leads.filter(l => l.status === 'Non-confirmed').length;
+      const nq = leads.filter(l => l.status === 'Non-qualified').length;
+      const newCount = leads.filter(l => !STATUSES.some(s => s.name === l.status)).length;
+      document.getElementById('qualifiedSummary').textContent = `${q} qualified`;
+      document.getElementById('pendingSummary').textContent = `${nc} non-confirmed`;
+      document.getElementById('rejectedSummary').textContent = `${nq} non-qualified`;
+      document.getElementById('peopleCount').textContent = String(newCount);
+      document.getElementById('mobileNewCount').textContent = newCount;
+      const mb = document.getElementById('mobileNewBtn');
+      mb.style.display = newCount ? 'inline-flex' : 'none';
     }
 
     function makeText(tag, className, text) {
-      const element = document.createElement(tag);
-      element.className = className;
-      element.textContent = text;
-      return element;
+      const el = document.createElement(tag);
+      el.className = className;
+      el.textContent = text;
+      return el;
     }
 
-    function displayName(lead) {
-      return lead.name || lead.business || 'New enquiry';
-    }
+    function displayName(lead) { return lead.name || lead.business || 'New enquiry'; }
 
     function visibleLeads() {
       const term = searchEl.value.trim().toLowerCase();
       if (!term) return leads;
-      return leads.filter((lead) => [lead.name, lead.business, lead.service, lead.owner, lead.status]
-        .concat(lead.tags || []).join(' ').toLowerCase().includes(term));
+      return leads.filter(l => [l.name,l.business,l.service,l.owner,l.status].concat(l.tags||[]).join(' ').toLowerCase().includes(term));
     }
 
     function renderPeople() {
-      const newEntries = leads.filter((lead) => !STATUSES.some((status) => status.name === lead.status));
-      document.getElementById('peopleCount').textContent = String(newEntries.length);
+      const newEntries = leads.filter(l => !STATUSES.some(s => s.name === l.status));
       const term = searchEl.value.trim().toLowerCase();
-      const filtered = term ? newEntries.filter((lead) => [lead.name, lead.business, lead.service, lead.owner]
-        .concat(lead.tags || []).join(' ').toLowerCase().includes(term)) : newEntries;
+      const filtered = term ? newEntries.filter(l => [l.name,l.business,l.service,l.owner].concat(l.tags||[]).join(' ').toLowerCase().includes(term)) : newEntries;
       if (!filtered.length) {
-        peopleEl.replaceChildren(makeText('div', 'empty-list', newEntries.length ? 'No matching new entries' : 'No new entries'));
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.innerHTML = '<div class="empty-icon">○</div><div>No new entries</div><div style="font-size:11px;margin-top:4px">New WhatsApp enquiries will appear here</div>';
+        peopleEl.replaceChildren(empty);
         return;
       }
-      peopleEl.replaceChildren(...filtered.map((lead) => {
+      peopleEl.replaceChildren(...filtered.map((lead, idx) => {
         const entry = document.createElement('div');
-        entry.className = 'person-entry';
+        entry.className = 'person-entry fade-in';
+        entry.style.animationDelay = `${idx * 30}ms`;
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `person${selectedId === lead.id ? ' is-selected' : ''}`;
-        button.title = 'Click to assign · Double-click for details';
-        const initials = displayName(lead).split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase();
-        button.append(makeText('span', 'avatar', initials || 'L'));
-        const copy = document.createElement('span');
-        copy.className = 'person-copy';
-        copy.append(makeText('span', 'person-name', displayName(lead)));
-        copy.append(makeText('span', 'person-service', lead.service || 'New enquiry'));
+        const initials = displayName(lead).split(/\s+/).slice(0,2).map(p=>p[0]||'').join('').toUpperCase();
+        button.append(makeText('span','avatar', initials||'L'));
+        const copy = document.createElement('span'); copy.className='person-copy';
+        copy.append(makeText('span','person-name', displayName(lead)));
+        copy.append(makeText('span','person-service', lead.service||'New enquiry'));
         button.append(copy);
-        button.addEventListener('click', () => {
-          openAssignFor = openAssignFor === lead.id ? null : lead.id;
-          renderPeople();
-        });
+        button.addEventListener('click', () => { openAssignFor = openAssignFor===lead.id?null:lead.id; renderPeople(); });
         button.addEventListener('dblclick', () => openLead(lead.id));
-        button.addEventListener('keydown', (event) => { if (event.key === 'Enter') openLead(lead.id); });
+        button.addEventListener('keydown', e => { if(e.key==='Enter') openLead(lead.id); });
         entry.append(button);
         if (openAssignFor === lead.id) {
-          const menu = document.createElement('div');
-          menu.className = 'assign-menu';
-          menu.setAttribute('role', 'group');
-          menu.append(makeText('span', 'assign-menu-label', 'Move entry to'));
-          for (const status of STATUSES) {
-            const option = makeText('button', 'assign-option', status.name);
-            option.type = 'button';
-            option.addEventListener('click', () => updateStatus(lead.id, status.name));
-            menu.append(option);
+          const menu = document.createElement('div'); menu.className='assign-menu'; menu.setAttribute('role','group');
+          menu.append(makeText('span','assign-menu-label','Move entry to'));
+          for (const s of STATUSES) {
+            const opt = makeText('button','assign-option', s.name); opt.type='button';
+            opt.addEventListener('click', () => updateStatus(lead.id, s.name));
+            menu.append(opt);
           }
           entry.append(menu);
         }
@@ -297,282 +432,195 @@
 
     function renderBoard() {
       const filtered = visibleLeads();
-      boardEl.replaceChildren(...STATUSES.map((status) => {
+      const isMobile = window.innerWidth <= 760;
+      boardEl.replaceChildren(...STATUSES.map(status => {
+        if (isMobile && status.name !== activeTab) return document.createDocumentFragment();
+        const items = filtered.filter(l => l.status === status.name);
         const lane = document.createElement('section');
-        lane.className = 'lane';
-        lane.dataset.status = status.name;
-        lane.addEventListener('dragover', (event) => { event.preventDefault(); lane.classList.add('is-over'); });
-        lane.addEventListener('dragleave', (event) => { if (!lane.contains(event.relatedTarget)) lane.classList.remove('is-over'); });
-        lane.addEventListener('drop', async (event) => {
-          event.preventDefault();
-          lane.classList.remove('is-over');
-          const id = event.dataTransfer.getData('text/plain');
-          if (id) await updateStatus(id, status.name);
+        lane.className='lane'; lane.dataset.status=status.name;
+        lane.addEventListener('dragover', e=>{e.preventDefault();lane.classList.add('is-over');});
+        lane.addEventListener('dragleave', e=>{if(!lane.contains(e.relatedTarget)) lane.classList.remove('is-over');});
+        lane.addEventListener('drop', async e=>{
+          e.preventDefault(); lane.classList.remove('is-over');
+          const id=e.dataTransfer.getData('text/plain'); if(id) await updateStatus(id,status.name);
         });
-        const items = filtered.filter((lead) => lead.status === status.name);
-        const head = document.createElement('div');
-        head.className = 'lane-head';
-        const title = document.createElement('div');
-        title.className = `lane-title text-${status.tone}`;
-        title.append(makeText('span', 'dot', ''));
-        title.append(makeText('span', '', status.name));
-        head.append(title, makeText('span', 'count', `${items.length} ${status.name.toLowerCase()}`));
+        const head=document.createElement('div'); head.className='lane-head';
+        const title=document.createElement('div'); title.className='lane-title';
+        const dot=document.createElement('span'); dot.className=`dot dot-${status.tone}`; dot.style.width='8px'; dot.style.height='8px';
+        title.append(dot, makeText('span','',status.name));
+        head.append(title, makeText('span','count',`${items.length} ${status.name.toLowerCase()}`));
         lane.append(head);
-        const cards = document.createElement('div');
-        cards.className = 'lane-list';
-        if (!items.length) cards.append(makeText('div', 'empty-lane', 'No leads in this stage'));
-        for (const lead of items) cards.append(createLeadCard(lead));
+        const cards=document.createElement('div'); cards.className='lane-list';
+        if(!items.length) cards.append(makeText('div','empty-lane','No leads in this stage'));
+        for(const lead of items) cards.append(createLeadCard(lead));
         lane.append(cards);
         return lane;
       }));
     }
 
     function createLeadCard(lead) {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.draggable = true;
-      card.className = `lead-card${selectedId === lead.id ? ' is-selected' : ''}`;
-      card.dataset.id = lead.id;
-      card.title = 'Drag to change status · Double-click to open details';
-      card.addEventListener('click', () => selectLead(lead.id));
-      card.addEventListener('dblclick', () => openLead(lead.id));
-      card.addEventListener('keydown', (event) => { if (event.key === 'Enter') openLead(lead.id); });
-      card.addEventListener('dragstart', (event) => {
-        event.dataTransfer.setData('text/plain', lead.id);
-        event.dataTransfer.effectAllowed = 'move';
-        card.classList.add('is-dragging');
-      });
-      card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
-      const top = document.createElement('div');
-      top.className = 'lead-card-top';
-      const title = document.createElement('div');
-      title.append(makeText('div', 'lead-name', displayName(lead)));
-      if (lead.business && lead.name) title.append(makeText('div', 'lead-business', lead.business));
+      const card=document.createElement('button'); card.type='button'; card.draggable=true;
+      card.className=`lead-card fade-in${selectedId===lead.id?' is-selected':''}`; card.dataset.id=lead.id;
+      card.title='Drag to change status · Click to open · Double-click for details';
+      card.addEventListener('click',()=>selectLead(lead.id));
+      card.addEventListener('dblclick',()=>openLead(lead.id));
+      card.addEventListener('keydown',e=>{if(e.key==='Enter') openLead(lead.id);});
+      card.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',lead.id);e.dataTransfer.effectAllowed='move';card.classList.add('is-dragging');});
+      card.addEventListener('dragend',()=>card.classList.remove('is-dragging'));
+      const top=document.createElement('div'); top.className='lead-card-top';
+      const title=document.createElement('div');
+      title.append(makeText('div','lead-name',displayName(lead)));
+      if(lead.business && lead.name) title.append(makeText('div','lead-business',lead.business));
       top.append(title);
+      const statusBadge = makeText('span',`badge badge-${STATUSES.find(s=>s.name===lead.status)?.tone||'pending'}`, lead.status||'New');
+      top.append(statusBadge);
       card.append(top);
-      if (lead.service) card.append(makeText('span', 'lead-service', lead.service));
-      const meta = document.createElement('div');
-      meta.className = 'lead-meta';
-      meta.append(makeText('span', 'lead-owner', lead.owner || 'Unassigned'));
-      meta.append(makeText('span', '', lead.lastSeen ? new Date(lead.lastSeen).toLocaleDateString() : ''));
+      if(lead.service) card.append(makeText('span','badge badge-pending',lead.service));
+      const meta=document.createElement('div'); meta.className='lead-meta';
+      meta.append(makeText('span','',lead.owner||'Unassigned'));
+      meta.append(makeText('span','', lead.lastSeen ? new Date(lead.lastSeen).toLocaleDateString() : ''));
       card.append(meta);
       return card;
     }
 
-    function selectLead(id) {
-      selectedId = id;
-      renderPeople();
-      renderBoard();
+    function selectLead(id){ selectedId=id; renderPeople(); renderBoard(); }
+
+    function addDetail(c,label,value,href){
+      const f=document.createElement('div'); f.className='detail-field';
+      f.append(makeText('div','detail-label',label));
+      const v=document.createElement('div'); v.className='detail-value';
+      if(href){ const a=document.createElement('a'); a.href=href; a.textContent=value||'Not provided'; v.append(a);} else v.textContent=value||'Not provided';
+      f.append(v); c.append(f);
     }
 
-    function addDetail(container, label, value, href) {
-      const field = document.createElement('div');
-      field.className = 'detail-field';
-      field.append(makeText('div', 'detail-label', label));
-      const valueEl = document.createElement('div');
-      valueEl.className = 'detail-value';
-      if (href) {
-        const link = document.createElement('a');
-        link.href = href;
-        link.textContent = value || 'Not provided';
-        valueEl.append(link);
-      } else valueEl.textContent = value || 'Not provided';
-      field.append(valueEl);
-      container.append(field);
-    }
-
-    async function openLead(id) {
-      try {
-        const response = await fetch(`/leads/${encodeURIComponent(id)}`);
-        if (!response.ok) throw new Error(`Could not load lead (${response.status})`);
-        const data = await response.json();
-        const lead = data.lead || {};
-        const crm = data.crm || {};
-        selectedId = id;
-        openAssignFor = null;
-        document.getElementById('dialogTitle').textContent = displayName(lead);
-        document.getElementById('dialogSubtitle').textContent = `${lead.service || 'General enquiry'} · Lead ${id}`;
+    async function openLead(id){
+      try{
+        const r=await fetch(`/leads/${encodeURIComponent(id)}`); if(!r.ok) throw new Error(`Could not load lead (${r.status})`);
+        const data=await r.json(); const lead=data.lead||{}; const crm=data.crm||{};
+        selectedId=id; openAssignFor=null;
+        document.getElementById('dialogTitle').textContent=displayName(lead);
+        document.getElementById('dialogSubtitle').textContent=`${lead.service||'General enquiry'} · ${id}`;
         dialogBody.replaceChildren();
-
-        const details = document.createElement('div');
-        details.className = 'details-grid';
-        addDetail(details, 'Client name', lead.name || lead.business);
-        addDetail(details, 'Lead ID', id);
-        addDetail(details, 'Service', lead.service);
-        addDetail(details, 'Contact number', data.phone, data.phone ? `tel:${data.phone}` : null);
-        addDetail(details, 'Business', lead.business);
-        addDetail(details, 'Assigned owner / team', crm.owner || lead.assignedTeam);
+        const details=document.createElement('div'); details.className='details-grid';
+        addDetail(details,'Client name',lead.name||lead.business);
+        addDetail(details,'Lead ID',id);
+        addDetail(details,'Service',lead.service);
+        addDetail(details,'Contact number',data.phone, data.phone?`tel:${data.phone}`:null);
+        addDetail(details,'Business',lead.business);
+        addDetail(details,'Owner / team',crm.owner||lead.assignedTeam);
         dialogBody.append(details);
+        const facts=lead.serviceDetails||{}; const entries=Object.entries(facts);
+        if(entries.length){
+          dialogBody.append(makeText('h3','section-title','Details collected'));
+          const grid=document.createElement('div'); grid.className='details-grid';
+          for(const [k,v] of entries) addDetail(grid, k.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()), typeof v==='string'?v:JSON.stringify(v));
+          dialogBody.append(grid);
+        }
+        dialogBody.append(makeText('h3','section-title','Conversation'));
+        const hist=document.createElement('div'); hist.className='conversation';
+        for(const e of (data.history||[])){
+          const m=document.createElement('div'); m.className='message';
+          m.append(makeText('span','message-meta',`${e.role==='user'?'Client':'Bot'} · ${new Date(e.ts).toLocaleString()}`), document.createTextNode(e.content||''));
+          hist.append(m);
+        }
+        if(!hist.childElementCount) hist.append(makeText('div','empty','No conversation history'));
+        dialogBody.append(hist);
 
-        const facts = lead.serviceDetails || {};
-        const factEntries = Object.entries(facts);
-        if (factEntries.length) {
-          dialogBody.append(makeText('h3', 'section-title', 'Details collected'));
-          const factGrid = document.createElement('div');
-          factGrid.className = 'details-grid';
-          for (const [key, value] of factEntries) {
-            const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (character) => character.toUpperCase());
-            addDetail(factGrid, label, typeof value === 'string' ? value : JSON.stringify(value));
-          }
-          dialogBody.append(factGrid);
+        dialogBody.append(makeText('h3','section-title','Sales decision'));
+        const form=document.createElement('div'); form.className='form-grid';
+        // Status
+        const statusWrap=document.createElement('div'); statusWrap.className='form-field';
+        statusWrap.append(makeText('label','','Status'));
+        const statusSelect=document.createElement('select'); statusSelect.id='editStatus';
+        const newOpt=document.createElement('option'); newOpt.value=''; newOpt.textContent='New (unassigned)'; newOpt.selected=!lead.status; statusSelect.append(newOpt);
+        for(const s of STATUSES){ const n=document.createElement('option'); n.value=s.name; n.textContent=s.name; n.selected=lead.status===s.name; statusSelect.append(n);}
+        statusWrap.append(statusSelect); form.append(statusWrap);
+        // Owner
+        const ownerWrap=document.createElement('div'); ownerWrap.className='form-field';
+        ownerWrap.append(makeText('label','','Owner / team'));
+        const ownerInput=document.createElement('input'); ownerInput.id='editOwner'; ownerInput.value=crm.owner||lead.assignedTeam||''; ownerInput.placeholder='Assign after calling';
+        ownerWrap.append(ownerInput); form.append(ownerWrap);
+        // Sales Chatbot ON/OFF - Switch
+        const botWrap=document.createElement('div'); botWrap.className='form-field full';
+        const switchRow=document.createElement('div'); switchRow.className='switch-row';
+        const switchLabel=document.createElement('div');
+        switchLabel.innerHTML='<div class="switch-label">Sales Chatbot</div><div class="switch-desc">OFF = bot paused, manual handling only</div>';
+        const switchEl=document.createElement('label'); switchEl.className='switch';
+        const switchInput=document.createElement('input'); switchInput.type='checkbox'; switchInput.id='editBotEnabled'; switchInput.checked=!crm.botPaused;
+        switchEl.append(switchInput);
+        switchRow.append(switchLabel, switchEl);
+        botWrap.append(switchRow); form.append(botWrap);
+        // Contact type
+        const typeWrap=document.createElement('div'); typeWrap.className='form-field full';
+        typeWrap.append(makeText('label','','Contact type — excluded types never receive sales automation'));
+        const typeSel=document.createElement('select'); typeSel.id='editContactType';
+        for(const t of ['Unknown','New Lead','Existing Client','Past Client','Employee','Vendor','Partner']){
+          const o=document.createElement('option'); o.value=t; o.textContent=t; o.selected=t===(crm.contactType||lead.contactType||'Unknown'); typeSel.append(o);
         }
-
-        dialogBody.append(makeText('h3', 'section-title', 'Conversation'));
-        const history = document.createElement('div');
-        history.className = 'conversation';
-        for (const entry of (data.history || [])) {
-          const message = document.createElement('div');
-          message.className = 'message';
-          const who = makeText('span', 'message-meta', `${entry.role === 'user' ? 'Client' : 'Bot'} · ${new Date(entry.ts).toLocaleString()}`);
-          message.append(who, document.createTextNode(entry.content || ''));
-          history.append(message);
-        }
-        if (!history.childElementCount) history.append(makeText('div', 'empty-list', 'No conversation history'));
-        dialogBody.append(history);
-
-        dialogBody.append(makeText('h3', 'section-title', 'Sales decision'));
-        const form = document.createElement('div');
-        form.className = 'form-grid';
-        const statusWrap = document.createElement('div');
-        statusWrap.className = 'form-field';
-        statusWrap.append(makeText('label', '', 'Status'));
-        const statusSelect = document.createElement('select');
-        statusSelect.id = 'editStatus';
-        const newOption = document.createElement('option');
-        newOption.value = '';
-        newOption.textContent = 'New (unassigned)';
-        newOption.selected = !lead.status;
-        statusSelect.append(newOption);
-        for (const option of STATUSES) {
-          const node = document.createElement('option');
-          node.value = option.name;
-          node.textContent = option.name;
-          node.selected = lead.status === option.name;
-          statusSelect.append(node);
-        }
-        statusWrap.append(statusSelect);
-        form.append(statusWrap);
-        const ownerWrap = document.createElement('div');
-        ownerWrap.className = 'form-field';
-        ownerWrap.append(makeText('label', '', 'Owner / team'));
-        const ownerInput = document.createElement('input');
-        ownerInput.id = 'editOwner';
-        ownerInput.value = crm.owner || lead.assignedTeam || '';
-        ownerInput.placeholder = 'Assign after calling';
-        ownerWrap.append(ownerInput);
-        form.append(ownerWrap);
-        const controls = document.createElement('div');
-        controls.className = 'form-field full';
-        controls.append(makeText('label', '', 'Contact type — excluded types never receive sales automation'));
-        const contactType = document.createElement('select');
-        contactType.id = 'editContactType';
-        for (const type of ['Unknown', 'New Lead', 'Existing Client', 'Past Client', 'Employee', 'Vendor', 'Partner']) {
-          const option = document.createElement('option');
-          option.value = type; option.textContent = type;
-          option.selected = type === (crm.contactType || lead.contactType || 'Unknown');
-          contactType.append(option);
-        }
-        controls.append(contactType);
-        for (const [id, label, checked] of [['editBotPaused', 'Pause bot', crm.botPaused], ['editHumanTakeover', 'Human handling', crm.humanTakeover]]) {
-          const wrapper = document.createElement('label');
-          const input = document.createElement('input');
-          input.type = 'checkbox'; input.id = id; input.checked = Boolean(checked);
-          wrapper.append(input, document.createTextNode(label)); controls.append(wrapper);
-        }
-        form.append(controls);
-        const notesWrap = document.createElement('div');
-        notesWrap.className = 'form-field full';
-        notesWrap.append(makeText('label', '', 'Internal notes'));
-        const notes = document.createElement('textarea');
-        notes.id = 'editNotes';
-        notes.value = crm.notes || '';
-        notesWrap.append(notes);
-        form.append(notesWrap);
-        const tagsWrap = document.createElement('div');
-        tagsWrap.className = 'form-field full';
-        tagsWrap.append(makeText('label', '', 'Tags, separated by commas'));
-        const tags = document.createElement('input');
-        tags.id = 'editTags';
-        tags.value = (crm.tags || []).join(', ');
-        tagsWrap.append(tags);
-        form.append(tagsWrap);
+        typeWrap.append(typeSel); form.append(typeWrap);
+        // Human handling
+        const humanWrap=document.createElement('div'); humanWrap.className='form-field full';
+        const humanRow=document.createElement('div'); humanRow.className='switch-row';
+        humanRow.innerHTML='<div><div class="switch-label">Human handling</div><div class="switch-desc">Salesperson has taken over</div></div>';
+        const humanSwitch=document.createElement('label'); humanSwitch.className='switch';
+        const humanInput=document.createElement('input'); humanInput.type='checkbox'; humanInput.id='editHumanTakeover'; humanInput.checked=Boolean(crm.humanTakeover);
+        humanSwitch.append(humanInput); humanRow.append(humanSwitch); humanWrap.append(humanRow); form.append(humanWrap);
+        // Notes
+        const notesWrap=document.createElement('div'); notesWrap.className='form-field full';
+        notesWrap.append(makeText('label','','Internal notes'));
+        const notes=document.createElement('textarea'); notes.id='editNotes'; notes.value=crm.notes||''; notesWrap.append(notes); form.append(notesWrap);
+        // Tags
+        const tagsWrap=document.createElement('div'); tagsWrap.className='form-field full';
+        tagsWrap.append(makeText('label','','Tags (comma separated)'));
+        const tags=document.createElement('input'); tags.id='editTags'; tags.value=(crm.tags||[]).join(', '); tagsWrap.append(tags); form.append(tagsWrap);
         dialogBody.append(form);
-        const actions = document.createElement('div');
-        actions.className = 'dialog-actions';
-        const close = makeText('button', 'button', 'Close');
-        close.type = 'button';
-        close.addEventListener('click', () => dialog.close());
-        const save = makeText('button', 'button button-primary', 'Save changes');
-        save.type = 'button';
-        save.addEventListener('click', () => saveLead(id));
-        actions.append(close, save);
-        dialogBody.append(actions);
-        if (!dialog.open) dialog.showModal();
-        renderPeople();
-        renderBoard();
-      } catch (error) {
-        showToast(error.message);
-      }
+        const actions=document.createElement('div'); actions.className='dialog-actions';
+        const close=makeText('button','btn btn-secondary','Close'); close.type='button'; close.addEventListener('click',()=>dialog.close());
+        const save=makeText('button','btn btn-primary','Save changes'); save.type='button'; save.addEventListener('click',()=>saveLead(id));
+        actions.append(close,save); dialogBody.append(actions);
+        if(!dialog.open) dialog.showModal();
+        renderPeople(); renderBoard();
+      }catch(e){ showToast(e.message); }
     }
 
-    async function saveLead(id) {
-      const statusValue = document.getElementById('editStatus').value;
-      const payload = {
+    async function saveLead(id){
+      const payload={
         contactType: document.getElementById('editContactType').value,
-        botPaused: document.getElementById('editBotPaused').checked,
+        botPaused: !document.getElementById('editBotEnabled').checked,
         humanTakeover: document.getElementById('editHumanTakeover').checked,
-        ...(statusValue ? { status: statusValue } : {}),
+        ...(document.getElementById('editStatus').value ? {status: document.getElementById('editStatus').value} : {}),
         owner: document.getElementById('editOwner').value,
         notes: document.getElementById('editNotes').value,
-        tags: document.getElementById('editTags').value.split(',').map((tag) => tag.trim()).filter(Boolean),
+        tags: document.getElementById('editTags').value.split(',').map(t=>t.trim()).filter(Boolean),
       };
-      const response = await fetch(`/leads/${encodeURIComponent(id)}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-      });
-      if (!response.ok) { showToast(`Save failed (${response.status})`); return; }
-      await load();
-      showToast('Lead updated');
-      dialog.close();
+      const r=await fetch(`/leads/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok){ showToast(`Save failed (${r.status})`); return; }
+      await load(); showToast('Lead updated'); dialog.close();
     }
 
-    async function updateStatus(id, status) {
-      const lead = leads.find((item) => item.id === id);
-      if (!lead || lead.status === status) return;
-      const previousStatus = lead.status;
-      lead.status = status;
-      openAssignFor = null;
-      renderSummary();
-      renderPeople();
-      renderBoard();
-      try {
-        const response = await fetch(`/leads/${encodeURIComponent(id)}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
-        });
-        if (!response.ok) throw new Error(`Could not move lead (${response.status})`);
+    async function updateStatus(id,status){
+      const lead=leads.find(l=>l.id===id); if(!lead||lead.status===status) return;
+      const prev=lead.status; lead.status=status; openAssignFor=null; renderSummary(); renderPeople(); renderBoard();
+      try{
+        const r=await fetch(`/leads/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+        if(!r.ok) throw new Error(`Could not move lead (${r.status})`);
         showToast(`Moved to ${status}`);
-      } catch (error) {
-        lead.status = previousStatus;
-        renderSummary();
-        renderPeople();
-        renderBoard();
-        showToast(error.message);
-      }
+      }catch(e){ lead.status=prev; renderSummary(); renderPeople(); renderBoard(); showToast(e.message); }
     }
 
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.classList.add('is-visible');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2400);
+    function showToast(msg){
+      document.getElementById('toastText').textContent=msg;
+      const toast=document.getElementById('toast'); toast.classList.add('is-visible');
+      clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('is-visible'),2400);
     }
 
-    searchEl.addEventListener('input', () => { renderPeople(); renderBoard(); });
-    document.getElementById('refresh').addEventListener('click', load);
-    document.getElementById('closeDialog').addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    searchEl.addEventListener('input',()=>{renderPeople();renderBoard();});
+    document.getElementById('refresh').addEventListener('click',load);
+    document.getElementById('closeDialog').addEventListener('click',()=>dialog.close());
+    dialog.addEventListener('click',e=>{if(e.target===dialog) dialog.close();});
+    window.addEventListener('resize',renderBoard);
     load();
-    setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);
+    setInterval(()=>{ if(document.visibilityState==='visible') load(); },60000);
   </script>
 </body>
 </html>
