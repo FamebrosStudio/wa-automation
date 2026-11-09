@@ -205,4 +205,4 @@ async function archiveIncoming(message, phone) {
   }
 }
 
-module.exports = { isConfigured, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, archiveIncoming, acquirePhoneLease, hasProcessedMessage, markMessageProcessed };
+module.exports = { isConfigured, database, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, archiveIncoming, acquirePhoneLease, hasProcessedMessage, markMessageProcessed };

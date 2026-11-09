@@ -48,7 +48,7 @@ app.post('/webhook', async (req, res) => {
           const from = msg.from;
           if (!from) continue;
           if (msg.type === 'unknown') continue;
-          console.log(`[webhook] incoming from ${from} type=${msg.type} id=${msg.id}`);
+          console.log(`[webhook] incoming from ${from} type=${msg.type}`);
           await handleIncoming(msg, from);
         }
       }
@@ -163,6 +163,28 @@ app.get('/leads', dashboardAuth, async (req, res) => {
       return { ...lead, id, tags: crm.tags || (lead.service ? [lead.service] : []), owner: crm.owner || lead.assignedTeam || '', phone: undefined };
     }),
   });
+});
+
+// Reset all lead data (requires dashboard auth)
+app.post('/reset', dashboardAuth, async (req, res) => {
+  try {
+    if (firestore.isConfigured()) {
+      const db = await firestore.database();
+      if (db) {
+        for (const collectionName of ['waAutomationLeads', 'waAutomationMessages', 'waAutomationInbox', 'waAutomationLocks']) {
+          const snapshot = await db.collection(collectionName).get();
+          const batch = db.batch();
+          snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+          if (snapshot.docs.length) await batch.commit();
+        }
+      }
+    }
+    leads.restore([]);
+    return res.json({ reset: true });
+  } catch (error) {
+    console.error('[reset] failed:', error.message);
+    return res.status(503).json({ error: 'Reset failed' });
+  }
 });
 
 app.get('/dashboard', dashboardAuth, (req, res) => {
