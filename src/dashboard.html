@@ -47,6 +47,11 @@
     .person-copy { min-width: 0; }
     .person-name { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
     .person-service { overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .person-entry { min-width: 0; }
+    .assign-menu { display: grid; gap: 4px; margin: 3px 0 7px 38px; padding: 7px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--raised); }
+    .assign-menu-label { padding: 2px 4px 4px; color: var(--muted); font-size: 10px; }
+    .assign-option { min-height: 30px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text); text-align: left; font-size: 11px; cursor: pointer; }
+    .assign-option:hover { border-color: var(--line); background: #303033; }
     .sidebar-footer { margin-top: auto; padding: 14px 4px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
     .main { min-width: 0; padding: 28px 28px 24px; }
     .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
@@ -136,8 +141,8 @@
   <div class="app">
     <aside class="sidebar" aria-label="Lead navigation">
       <div class="brand"><div class="brand-mark" aria-hidden="true">F</div><div><div class="brand-name">Famebros Studio</div><div class="brand-subtitle">Sales desk</div></div></div>
-      <div class="sidebar-heading"><span>People</span><span id="peopleCount" class="quiet-count">0</span></div>
-      <input id="search" class="search" type="search" placeholder="Search people" aria-label="Search people">
+      <div class="sidebar-heading"><span>New entries</span><span id="peopleCount" class="quiet-count">0</span></div>
+      <input id="search" class="search" type="search" placeholder="Search new entries" aria-label="Search new entries">
       <nav id="people" class="people" aria-label="People list"><div class="loading">Loading leads</div></nav>
       <div class="sidebar-footer"><span class="credit">Interface direction adapted from unslop by @heydamir · CC BY 4.0</span></div>
     </aside>
@@ -185,6 +190,8 @@
     ];
     let leads = [];
     let selectedId = null;
+    let openAssignFor = null;
+    let loadPromise = null;
     let toastTimer;
     const peopleEl = document.getElementById('people');
     const boardEl = document.getElementById('board');
@@ -192,22 +199,34 @@
     const dialog = document.getElementById('leadDialog');
     const dialogBody = document.getElementById('dialogBody');
 
-    async function load() {
-      try {
-        const response = await fetch('/leads');
-        if (!response.ok) throw new Error(`Could not load leads (${response.status})`);
-        const data = await response.json();
-        leads = data.leads || [];
-        document.getElementById('peopleCount').textContent = String(leads.length);
-        document.getElementById('qualifiedSummary').textContent = `${data.qualified || 0} qualified`;
-        document.getElementById('pendingSummary').textContent = `${data.nonConfirmed || 0} non-confirmed`;
-        document.getElementById('rejectedSummary').textContent = `${data.nonQualified || 0} non-qualified`;
-        renderPeople();
-        renderBoard();
-      } catch (error) {
-        peopleEl.replaceChildren(makeText('div', 'empty-list', error.message));
-        boardEl.replaceChildren(makeText('div', 'empty-list', 'Lead data is unavailable'));
-      }
+    function load() {
+      if (loadPromise) return loadPromise;
+      loadPromise = (async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        try {
+          const response = await fetch('/leads', { cache: 'no-store', signal: controller.signal });
+          if (!response.ok) throw new Error(`Could not load leads (${response.status})`);
+          const data = await response.json();
+          leads = data.leads || [];
+          renderSummary();
+          renderPeople();
+          renderBoard();
+        } catch (error) {
+          if (!leads.length) peopleEl.replaceChildren(makeText('div', 'empty-list', error.name === 'AbortError' ? 'Lead loading timed out. Try Refresh.' : error.message));
+          showToast(error.name === 'AbortError' ? 'Dashboard request timed out' : error.message);
+        } finally {
+          clearTimeout(timeout);
+          loadPromise = null;
+        }
+      })();
+      return loadPromise;
+    }
+
+    function renderSummary() {
+      document.getElementById('qualifiedSummary').textContent = `${leads.filter((lead) => lead.status === 'Qualified').length} qualified`;
+      document.getElementById('pendingSummary').textContent = `${leads.filter((lead) => lead.status === 'Non-confirmed').length} non-confirmed`;
+      document.getElementById('rejectedSummary').textContent = `${leads.filter((lead) => lead.status === 'Non-qualified').length} non-qualified`;
     }
 
     function makeText(tag, className, text) {
@@ -229,16 +248,22 @@
     }
 
     function renderPeople() {
-      const filtered = visibleLeads();
+      const newEntries = leads.filter((lead) => !STATUSES.some((status) => status.name === lead.status));
+      document.getElementById('peopleCount').textContent = String(newEntries.length);
+      const term = searchEl.value.trim().toLowerCase();
+      const filtered = term ? newEntries.filter((lead) => [lead.name, lead.business, lead.service, lead.owner]
+        .concat(lead.tags || []).join(' ').toLowerCase().includes(term)) : newEntries;
       if (!filtered.length) {
-        peopleEl.replaceChildren(makeText('div', 'empty-list', leads.length ? 'No matching people' : 'No leads yet'));
+        peopleEl.replaceChildren(makeText('div', 'empty-list', newEntries.length ? 'No matching new entries' : 'No new entries'));
         return;
       }
       peopleEl.replaceChildren(...filtered.map((lead) => {
+        const entry = document.createElement('div');
+        entry.className = 'person-entry';
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `person${selectedId === lead.id ? ' is-selected' : ''}`;
-        button.title = 'Double-click to open lead details';
+        button.title = 'Click to assign · Double-click for details';
         const initials = displayName(lead).split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase();
         button.append(makeText('span', 'avatar', initials || 'L'));
         const copy = document.createElement('span');
@@ -246,10 +271,27 @@
         copy.append(makeText('span', 'person-name', displayName(lead)));
         copy.append(makeText('span', 'person-service', lead.service || 'New enquiry'));
         button.append(copy);
-        button.addEventListener('click', () => selectLead(lead.id));
+        button.addEventListener('click', () => {
+          openAssignFor = openAssignFor === lead.id ? null : lead.id;
+          renderPeople();
+        });
         button.addEventListener('dblclick', () => openLead(lead.id));
         button.addEventListener('keydown', (event) => { if (event.key === 'Enter') openLead(lead.id); });
-        return button;
+        entry.append(button);
+        if (openAssignFor === lead.id) {
+          const menu = document.createElement('div');
+          menu.className = 'assign-menu';
+          menu.setAttribute('role', 'group');
+          menu.append(makeText('span', 'assign-menu-label', 'Move entry to'));
+          for (const status of STATUSES) {
+            const option = makeText('button', 'assign-option', status.name);
+            option.type = 'button';
+            option.addEventListener('click', () => updateStatus(lead.id, status.name));
+            menu.append(option);
+          }
+          entry.append(menu);
+        }
+        return entry;
       }));
     }
 
@@ -347,6 +389,7 @@
         const lead = data.lead || {};
         const crm = data.crm || {};
         selectedId = id;
+        openAssignFor = null;
         document.getElementById('dialogTitle').textContent = displayName(lead);
         document.getElementById('dialogSubtitle').textContent = `${lead.service || 'General enquiry'} · Lead ${id}`;
         dialogBody.replaceChildren();
@@ -395,6 +438,11 @@
         statusWrap.append(makeText('label', '', 'Status'));
         const statusSelect = document.createElement('select');
         statusSelect.id = 'editStatus';
+        const newOption = document.createElement('option');
+        newOption.value = '';
+        newOption.textContent = 'New (unassigned)';
+        newOption.selected = !lead.status;
+        statusSelect.append(newOption);
         for (const option of STATUSES) {
           const node = document.createElement('option');
           node.value = option.name;
@@ -449,8 +497,9 @@
     }
 
     async function saveLead(id) {
+      const statusValue = document.getElementById('editStatus').value;
       const payload = {
-        status: document.getElementById('editStatus').value,
+        ...(statusValue ? { status: statusValue } : {}),
         owner: document.getElementById('editOwner').value,
         notes: document.getElementById('editNotes').value,
         tags: document.getElementById('editTags').value.split(',').map((tag) => tag.trim()).filter(Boolean),
@@ -467,12 +516,25 @@
     async function updateStatus(id, status) {
       const lead = leads.find((item) => item.id === id);
       if (!lead || lead.status === status) return;
-      const response = await fetch(`/leads/${encodeURIComponent(id)}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
-      });
-      if (!response.ok) { showToast(`Could not move lead (${response.status})`); return; }
-      await load();
-      showToast(`Moved to ${status}`);
+      const previousStatus = lead.status;
+      lead.status = status;
+      openAssignFor = null;
+      renderSummary();
+      renderPeople();
+      renderBoard();
+      try {
+        const response = await fetch(`/leads/${encodeURIComponent(id)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
+        });
+        if (!response.ok) throw new Error(`Could not move lead (${response.status})`);
+        showToast(`Moved to ${status}`);
+      } catch (error) {
+        lead.status = previousStatus;
+        renderSummary();
+        renderPeople();
+        renderBoard();
+        showToast(error.message);
+      }
     }
 
     function showToast(message) {
@@ -488,7 +550,7 @@
     document.getElementById('closeDialog').addEventListener('click', () => dialog.close());
     dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
     load();
-    setInterval(load, 30000);
+    setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);
   </script>
 </body>
 </html>

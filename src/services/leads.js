@@ -14,7 +14,7 @@ function getLead(phone) {
   if (!leads.has(phone)) {
     leads.set(phone, {
       phone,
-      status: STATUS.NON_CONFIRMED,
+      status: null,
       firstSeen: new Date().toISOString(),
       lastSeen: new Date().toISOString(),
       messageCount: 0,
@@ -80,7 +80,7 @@ function classifyLead(phone, message, interactionType) {
 
   let newStatus = [STATUS.QUALIFIED, STATUS.NON_CONFIRMED, STATUS.NON_QUALIFIED].includes(lead.status)
     ? lead.status
-    : STATUS.NON_CONFIRMED;
+    : null;
 
   if (interactionType === 'human_request' || /\b(talk to (a )?human|speak (to|with) (a )?(person|agent|team|someone)|connect me|real person|live agent)\b/i.test(text)) {
     lead.humanRequested = true;
@@ -156,7 +156,7 @@ function restoreOne(item) {
 
 function normalizeStatus(lead) {
   if (![STATUS.QUALIFIED, STATUS.NON_CONFIRMED, STATUS.NON_QUALIFIED].includes(lead.status)) {
-    lead.status = STATUS.NON_CONFIRMED;
+    lead.status = null;
   }
 }
 

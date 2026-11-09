@@ -64,7 +64,7 @@ function dashboardAuth(req, res, next) {
 
 const LEAD_STATUSES = ['Qualified', 'Non-confirmed', 'Non-qualified'];
 function normalizeLeadStatus(lead) {
-  if (lead && !LEAD_STATUSES.includes(lead.status)) lead.status = 'Non-confirmed';
+  if (lead && !LEAD_STATUSES.includes(lead.status)) lead.status = null;
   return lead;
 }
 function safeRecordId(id) {

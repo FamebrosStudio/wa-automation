@@ -33,6 +33,12 @@ test('known contacts are ignored unless they explicitly prefix a message with bo
     assert.ok(sent.length > firstContactReplies, 'bot: prefix should explicitly request a reply');
 
     const leads = require('../src/services/leads');
+    const flow = require('../src/services/flow');
+    flow.startServiceFlow(phone, 'website');
+    const beforeFlowReply = sent.length;
+    await handleIncoming({ id: 'flow-1', type: 'text', text: { body: 'Business Website' } }, phone);
+    assert.ok(sent.length > beforeFlowReply, 'an existing contact should receive replies while continuing an active flow');
+
     leads.getLead(phone).status = 'Qualified';
     const beforeQualifiedMessage = sent.length;
     const qualifiedResult = await handleIncoming({ id: 'qualified-1', type: 'text', text: { body: 'bot: hi' } }, phone);

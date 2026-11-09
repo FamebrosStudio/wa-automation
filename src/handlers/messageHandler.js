@@ -279,12 +279,13 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'qualified-lead' };
       }
+      const continuingFlow = flow.hasActiveFlow(from);
       // Existing conversations stay silent unless an explicit text command
-      // asks the bot to respond. This prevents stale/old chat activity from
-      // triggering automated replies while preserving first-contact replies.
+      // or an already-started flow asks the bot to respond. This prevents
+      // stale/old chat activity from triggering replies while preserving live flows.
       const body = message.type === 'text' ? (message.text?.body || '') : '';
       const explicitBotRequest = knownContact && /^bot:\s*/i.test(body);
-      if (knownContact && !explicitBotRequest) {
+      if (knownContact && !explicitBotRequest && !continuingFlow) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true };
       }
