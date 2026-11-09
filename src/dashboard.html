@@ -261,7 +261,7 @@
         title.className = `lane-title text-${status.tone}`;
         title.append(makeText('span', 'dot', ''));
         title.append(makeText('span', '', status.name));
-        head.append(title, makeText('span', 'count', `${items.length} ${items.length === 1 ? 'lead' : 'leads'}`));
+        head.append(title, makeText('span', 'count', `${items.length} ${status.name.toLowerCase()}`));
         lane.append(head);
         const cards = document.createElement('div');
         cards.className = 'lane-list';
