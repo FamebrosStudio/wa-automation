@@ -6,8 +6,6 @@ module.exports = {
   verifyToken: process.env.VERIFY_TOKEN,
   graphVersion: process.env.GRAPH_API_VERSION || 'v19.0',
   port: process.env.PORT || 3000,
-  openaiKey: process.env.OPENAI_API_KEY || '',
-  googleSheetsId: process.env.GOOGLE_SHEETS_ID || '',
   googleServiceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '',
   googleServiceAccountKey: process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '',
   adminPhone: process.env.ADMIN_PHONE || '',

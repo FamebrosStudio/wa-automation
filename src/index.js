@@ -1,15 +1,9 @@
 const express = require('express');
 const config = require('./config');
 const { handleIncoming } = require('./handlers/messageHandler');
-const sheets = require('./services/sheets');
 const leads = require('./services/leads');
 const firestore = require('./services/firestore');
 const localCrm = new Map();
-
-// Initialize Google Sheets lead tracking (non-blocking)
-sheets.initSheets().then((ok) => {
-  if (ok) console.log('[sheets] Lead tracking enabled');
-}).catch((e) => console.error('[sheets] init failed:', e.message));
 
 const app = express();
 app.use(express.json());
@@ -66,7 +60,7 @@ function dashboardAuth(req, res, next) {
   next();
 }
 
-const LEAD_STATUSES = ['Qualified', 'Non-confirmed', 'Non-qualified'];
+const LEAD_STATUSES = ['Qualified', 'Non-qualified'];
 function safeRecordId(id) {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id);
 }
@@ -79,7 +73,7 @@ app.get('/leads/:id', dashboardAuth, async (req, res) => {
       : leads.snapshot().find((item) => firestore.recordId(item.phone) === req.params.id);
     if (!record) return res.sendStatus(404);
     const lead = record.lead;
-    res.json({ id: req.params.id, phone: lead.phone, lead, history: record.history || [], crm: record.crm || localCrm.get(req.params.id) || {} });
+    res.json({ id: req.params.id, phone: lead.phone, lead, history: record.history || [], crm: record.crm || localCrm.get(req.params.id) || { owner: lead.assignedTeam || '', tags: lead.service ? [lead.service] : [], notes: JSON.stringify(lead.serviceDetails || {}) } });
   } catch (error) {
     console.error('[firestore] lead detail failed:', error.message);
     res.status(503).json({ error: 'Lead storage unavailable' });
@@ -136,12 +130,11 @@ app.get('/leads', dashboardAuth, async (req, res) => {
   res.json({
     total: allLeads.length,
     qualified: allLeads.filter(l => l.status === 'Qualified').length,
-    nonConfirmed: allLeads.filter(l => l.status === 'Non-confirmed').length,
     nonQualified: allLeads.filter(l => l.status === 'Non-qualified').length,
     leads: allLeads.slice(-50).reverse().map((lead) => {
       const id = firestore.recordId(lead.phone);
       const crm = leadCrm.get(id) || localCrm.get(id) || {};
-      return { ...lead, id, tags: crm.tags || [], owner: crm.owner || '', phone: undefined };
+      return { ...lead, id, tags: crm.tags || (lead.service ? [lead.service] : []), owner: crm.owner || lead.assignedTeam || '', phone: undefined };
     }),
   });
 });
@@ -189,9 +182,9 @@ input,select,textarea{background:#111;color:#eee;border:1px solid #383838;border
 <div class="stats">
 <div class="stat"><div class="n" id="t">-</div><div class="l">Total</div></div>
 <div class="stat"><div class="n" id="q">-</div><div class="l">Qualified</div></div>
-<div class="stat"><div class="n" id="nc">-</div><div class="l">Pending</div></div>
+<div class="stat"><div class="n" id="nq">-</div><div class="l">Non-qualified</div></div>
 </div>
-<div class="filters"><input id="search" placeholder="Search name, business, interest, owner or tag"><select id="statusFilter"><option value="">All statuses</option><option>Qualified</option><option>Non-confirmed</option><option>Non-qualified</option></select></div>
+<div class="filters"><input id="search" placeholder="Search name, business, service, owner or tag"><select id="statusFilter"><option>Qualified</option><option value="">All statuses</option><option>Non-qualified</option></select></div>
 <div class="layout"><div class="card" id="list"><div class="empty">Loading...</div></div><section class="panel" id="detail"><div class="empty">Select a lead to view details</div></section></div>
 <div class="refresh"><button onclick="load()">Refresh</button></div>
 </div>
@@ -202,31 +195,33 @@ try{
 const r=await fetch('/leads');if(!r.ok)throw new Error('Dashboard data unavailable ('+r.status+')');const d=await r.json();
 document.getElementById('t').textContent=d.total;
 document.getElementById('q').textContent=d.qualified;
-document.getElementById('nc').textContent=d.nonConfirmed;
+document.getElementById('nq').textContent=d.nonQualified;
 leads=d.leads||[];renderList();
 }catch(e){document.getElementById('list').replaceChildren(empty('Error: '+e.message))}
 }
 function renderList(){
 const term=document.getElementById('search').value.toLowerCase();const status=document.getElementById('statusFilter').value;
-const shown=leads.filter(l=>(!status||l.status===status)&&(!term||[l.name,l.business,l.status,...(l.interests||[]),...(l.tags||[]),l.owner].join(' ').toLowerCase().includes(term)));
+  const shown=leads.filter(l=>(!status||l.status===status)&&(!term||[l.name,l.business,l.service,l.assignedTeam,l.status,...(l.interests||[]),...(l.tags||[]),l.owner].join(' ').toLowerCase().includes(term)));
 const el=document.getElementById('list');
  if(!shown.length){el.replaceChildren(empty(leads.length?'No matching leads':'No leads yet'));return}
  el.replaceChildren(...shown.map(l=>{
   const row=document.createElement('div');row.className='row';
  const details=document.createElement('div');
- const name=document.createElement('div');name.className='phone';name.textContent=l.name||'Lead';
-  const meta=document.createElement('div');meta.className='meta';meta.textContent=(l.interests||[]).join(', ')+' · '+(l.messageCount||0)+' msgs · '+(l.lastSeen||'');
+  const name=document.createElement('div');name.className='phone';name.textContent=l.name||l.business||'Lead';
+   const meta=document.createElement('div');meta.className='meta';meta.textContent=(l.service||'General enquiry')+' · '+(l.assignedTeam||'Unassigned')+' · '+(l.messageCount||0)+' msgs · '+(l.lastSeen||'');
  details.append(name,meta);
- const badge=document.createElement('span');badge.className='badge '+(l.status==='Qualified'?'q':l.status==='Non-confirmed'?'nc':'nq');badge.textContent=l.status||'';
+  const badge=document.createElement('span');badge.className='badge '+(l.status==='Qualified'?'q':'nq');badge.textContent=l.status||'';
   row.append(details,badge);row.onclick=()=>openLead(l.id);return row;
   }));
 }
 async function openLead(id){selected=id;const p=document.getElementById('detail');p.textContent='Loading…';try{const r=await fetch('/leads/'+encodeURIComponent(id));if(!r.ok)throw new Error('Could not load lead');const d=await r.json();const lead=d.lead,crm=d.crm||{};p.innerHTML='';
-const title=document.createElement('h2');title.textContent=lead.name||'Lead details';p.append(title);
+const title=document.createElement('h2');title.textContent=lead.name||lead.business||'Lead details';p.append(title);
+const summary=document.createElement('div');summary.className='msg';summary.textContent='Service: '+(lead.service||'General enquiry')+' · Assigned: '+(crm.owner||lead.assignedTeam||'Unassigned')+' · Status: '+(lead.status||'Non-qualified');p.append(summary);
+const facts=lead.serviceDetails||{};Object.entries(facts).forEach(([key,value])=>{const item=document.createElement('div');item.className='msg';item.textContent=key.replace(/([A-Z])/g,' $1')+': '+(typeof value==='string'?value:JSON.stringify(value));p.append(item)});
 const phone=document.createElement('div');phone.className='meta';phone.textContent='Phone: '+d.phone;p.append(phone);
 const history=document.createElement('div');history.className='history';(d.history||[]).forEach(m=>{const item=document.createElement('div');item.className='msg';const who=document.createElement('small');who.textContent=m.role+' · '+new Date(m.ts).toLocaleString();item.append(who,document.createTextNode(m.content));history.append(item)});p.append(history);
 const field=(label,id,value,type='text')=>{const l=document.createElement('label');l.textContent=label;const i=document.createElement(type==='textarea'?'textarea':'input');i.id=id;i.value=value||'';p.append(l,i)};
-const sl=document.createElement('label');sl.textContent='Lead status';const sel=document.createElement('select');sel.id='editStatus';['Qualified','Non-confirmed','Non-qualified'].forEach(v=>{const o=document.createElement('option');o.textContent=v;o.selected=lead.status===v;sel.append(o)});p.append(sl,sel);
+const sl=document.createElement('label');sl.textContent='Lead status';const sel=document.createElement('select');sel.id='editStatus';['Qualified','Non-qualified'].forEach(v=>{const o=document.createElement('option');o.textContent=v;o.selected=lead.status===v;sel.append(o)});p.append(sl,sel);
 field('Internal notes','notes',crm.notes,'textarea');field('Tags (comma separated)','tags',(crm.tags||[]).join(', '));field('Owner','owner',crm.owner);
 const btn=document.createElement('button');btn.className='save';btn.textContent='Save changes';btn.onclick=saveLead;p.append(btn);
 }catch(e){p.textContent=e.message}}

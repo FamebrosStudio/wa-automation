@@ -18,8 +18,7 @@ async function database() {
   if (!isConfigured()) return null;
   if (!dbPromise) {
     dbPromise = (async () => {
-      const admin = require('firebase-admin');
-      let credential;
+      const { Firestore } = require('@google-cloud/firestore');
       if (config.firebaseServiceAccountJson) {
         let credentials;
         try {
@@ -27,7 +26,11 @@ async function database() {
         } catch (_) {
           throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON');
         }
-        credential = admin.credential.cert(credentials);
+        return new Firestore({
+          projectId: config.firebaseProjectId,
+          credentials: { client_email: credentials.client_email, private_key: credentials.private_key },
+          preferRest: true,
+        });
       } else {
         const { getVercelOidcToken } = require('@vercel/oidc');
         const { ExternalAccountClient } = require('google-auth-library');
@@ -48,23 +51,10 @@ async function database() {
         });
         if (!authClient) throw new Error('Unable to initialize Vercel Workload Identity Federation');
 
-        // Firebase Admin accepts the same token-provider contract as its own credentials.
-        // This keeps the OIDC exchange keyless and lets google-auth-library refresh tokens.
-        credential = {
-          async getAccessToken() {
-            const { token } = await authClient.getAccessToken();
-            const expiry = authClient.credentials?.expiry_date;
-            const expiresIn = expiry ? Math.max(0, Math.floor((expiry - Date.now()) / 1000)) : 3600;
-            if (!token) throw new Error('Vercel Workload Identity returned no Google access token');
-            return { access_token: token, expires_in: expiresIn };
-          },
-        };
+        // Firestore's direct client accepts google-auth-library's OAuth2Client.
+        // Firebase Admin's app.firestore() rejects custom WIF credential providers.
+        return new Firestore({ projectId: config.firebaseProjectId, auth: authClient, preferRest: true });
       }
-      const app = admin.apps.find((candidate) => candidate.name === 'wa-automation') || admin.initializeApp({
-        credential,
-        projectId: config.firebaseProjectId,
-      }, 'wa-automation');
-      return app.firestore();
     })().catch((error) => {
       dbPromise = null;
       throw error;

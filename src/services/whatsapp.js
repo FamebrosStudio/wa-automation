@@ -5,9 +5,9 @@ const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 
 async function send(payload) {
   if (!config.whatsappToken || !config.phoneNumberId) {
-    console.warn('[whatsapp] missing token/phone_number_id; payload logged only');
-    console.log(JSON.stringify(payload, null, 2));
-    return { skipped: true };
+    // Do not acknowledge an inbound webhook as handled when no reply could be sent.
+    // Throwing lets the webhook return 503 so Meta can retry after configuration is fixed.
+    throw new Error('WhatsApp sending is not configured: set WHATSAPP_TOKEN and PHONE_NUMBER_ID');
   }
   const url = `${BASE}/${config.phoneNumberId}/messages`;
   try {

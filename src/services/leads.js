@@ -2,7 +2,6 @@ const config = require('../config');
 
 const STATUS = {
   QUALIFIED: 'Qualified',
-  NON_CONFIRMED: 'Non-confirmed',
   NON_QUALIFIED: 'Non-qualified',
 };
 
@@ -14,17 +13,21 @@ function getLead(phone) {
   if (!leads.has(phone)) {
     leads.set(phone, {
       phone,
-      status: STATUS.NON_CONFIRMED,
+      status: STATUS.NON_QUALIFIED,
       firstSeen: new Date().toISOString(),
       lastSeen: new Date().toISOString(),
       messageCount: 0,
       interests: [],
       humanRequested: false,
+      welcomeSent: false,
       name: null,
       business: null,
       budget: null,
       timeline: null,
       notes: '',
+      service: null,
+      assignedTeam: null,
+      serviceDetails: {},
     });
   }
   return leads.get(phone);
@@ -74,7 +77,7 @@ function classifyLead(phone, message, interactionType) {
   const nameMatch = text.match(/(?:i'm|i am|my name is|this is)\s+([a-z]+(?:\s+[a-z]+)?)/i);
   if (nameMatch) lead.name = lead.name || nameMatch[1].trim();
 
-  let newStatus = lead.status;
+  let newStatus = lead.status === STATUS.QUALIFIED ? STATUS.QUALIFIED : STATUS.NON_QUALIFIED;
 
   if (interactionType === 'human_request' || /\b(talk to (a )?human|speak (to|with) (a )?(person|agent|team|someone)|connect me|real person|live agent)\b/i.test(text)) {
     newStatus = STATUS.QUALIFIED;
@@ -101,10 +104,6 @@ function classifyLead(phone, message, interactionType) {
     newStatus = STATUS.NON_QUALIFIED;
   }
 
-  if (newStatus === lead.status && lead.interests.length > 0 && lead.messageCount >= 2) {
-    newStatus = STATUS.NON_CONFIRMED;
-  }
-
   if (lead.status === STATUS.QUALIFIED && newStatus !== STATUS.QUALIFIED) {
     newStatus = lead.status;
   }
@@ -127,6 +126,10 @@ function getLeadSummary(phone) {
     interests: lead.interests,
     messageCount: lead.messageCount,
     humanRequested: lead.humanRequested,
+    service: lead.service,
+    assignedTeam: lead.assignedTeam,
+    serviceDetails: lead.serviceDetails,
+    welcomeSent: lead.welcomeSent,
     firstSeen: lead.firstSeen,
     lastSeen: lead.lastSeen,
     conversationSummary: lastMessages,
@@ -137,12 +140,18 @@ function getAllLeads() {
   return Array.from(leads.values());
 }
 
+function updateLead(phone, updates) {
+  Object.assign(getLead(phone), updates);
+  return getLead(phone);
+}
+
 // Replace the process cache with a durable-store snapshot at request start.
 function restore(snapshot = []) {
   leads.clear();
   conversations.clear();
   for (const item of snapshot) {
     if (!item || !item.phone || !item.lead) continue;
+    if (item.lead.status !== STATUS.QUALIFIED) item.lead.status = STATUS.NON_QUALIFIED;
     leads.set(item.phone, item.lead);
     conversations.set(item.phone, Array.isArray(item.history) ? item.history.slice(-MAX_HISTORY) : []);
   }
@@ -150,6 +159,7 @@ function restore(snapshot = []) {
 
 function restoreOne(item) {
   if (!item || !item.phone || !item.lead) return;
+  if (item.lead.status !== STATUS.QUALIFIED) item.lead.status = STATUS.NON_QUALIFIED;
   leads.set(item.phone, item.lead);
   conversations.set(item.phone, Array.isArray(item.history) ? item.history.slice(-MAX_HISTORY) : []);
 }
@@ -169,6 +179,7 @@ module.exports = {
   addMessage,
   getHistory,
   classifyLead,
+  updateLead,
   getLeadSummary,
   getAllLeads,
   restore,

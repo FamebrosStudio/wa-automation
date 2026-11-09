@@ -110,7 +110,7 @@ Edit `src/data/knowledge.js`:
 
 \- For production, deploy to Railway/Render/VM and set webhook URL accordingly.
 
-\- To enable AI free-text answers, set `OPENAI\_API\_KEY` and wire `handlers/messageHandler.js` fallback (optional enhancement).
+\- The bot uses fixed service-selection and lead-capture flows; no OpenAI key is required.
 
 
 
@@ -130,12 +130,13 @@ project. `FIREBASE_SERVICE_ACCOUNT_JSON` remains an optional legacy/local
 fallback; do not create or store a private key when organization policy blocks
 keys. Do not commit or paste credentials into chat. The database is in
 `asia-south1` in project `wa-automation-famebros-phase-1`.
-The included `firestore.rules` denies client access; the app uses Firebase
-Admin SDK on the server. Without valid credentials, storage remains in-memory
-and is not durable. The Basic-Auth-protected dashboard supports
-search/status filtering, lead details and recent conversation history, internal
-notes, tags, owner assignment, and explicit status saves. Phone numbers are not
-included in the lead-list response; they appear only in authenticated details.
+The included `firestore.rules` denies client access; the app uses the Google
+Cloud Firestore server client with Vercel OIDC credentials. Without valid
+credentials, storage remains in-memory and is not durable. The Basic-Auth-
+protected dashboard shows qualified leads by default, complete service answers
+and conversation history, internal notes, team assignment, and explicit status
+saves. Leads are grouped only as Qualified or Non-qualified. Phone numbers are
+not included in the lead-list response; they appear only in authenticated details.
 
 Webhook processing uses Firestore transactionally acquired per-phone leases and
 durable message-ID records when Firestore is configured. Lease contention or

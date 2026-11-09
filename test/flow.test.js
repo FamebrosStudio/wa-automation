@@ -23,7 +23,7 @@ test('lead capture offers real choices and completion does not synthesize a lead
   const complete = flow.processFlowResponse(phone, 'flow_timeline_1');
   assert.equal(complete.done, true);
   assert.equal(leads.getLead(phone).messageCount, beforeComplete);
-  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_CONFIRMED);
+  assert.equal(leads.getLead(phone).status, leads.STATUS.NON_QUALIFIED);
 });
 
 test('cancel removes the active flow', () => {
@@ -50,7 +50,35 @@ test('restoring one lead does not clear other cached leads or conversations', ()
   const restored = `lead-restored-${Date.now()}`;
   leads.classifyLead(retained, 'hello', null);
   leads.addMessage(retained, 'user', 'keep me');
-  leads.restoreOne({ phone: restored, lead: { phone: restored, status: leads.STATUS.NON_CONFIRMED, messageCount: 1 }, history: [{ role: 'user', content: 'persisted', ts: 1 }] });
+  leads.restoreOne({ phone: restored, lead: { phone: restored, status: leads.STATUS.NON_QUALIFIED, messageCount: 1 }, history: [{ role: 'user', content: 'persisted', ts: 1 }] });
   assert.equal(leads.getHistory(retained).at(-1).content, 'keep me');
   assert.equal(leads.getHistory(restored)[0].content, 'persisted');
+});
+
+test('social media service captures customer type and Instagram before assigning the lead', () => {
+  const phone = `service-social-${Date.now()}`;
+  const first = flow.startServiceFlow(phone, 'social');
+  assert.match(first.intro, /complete Social Media Management/);
+  assert.deepEqual(first.options, ['I own a business', "I'm a creator/influencer", "I'm starting a new business"]);
+  flow.processFlowResponse(phone, '2');
+  const complete = flow.processFlowResponse(phone, 'https://instagram.com/example');
+  assert.equal(complete.done, true);
+  assert.equal(leads.getLead(phone).service, 'Social Media Management');
+  assert.equal(leads.getLead(phone).assignedTeam, 'Social Media Team');
+  assert.equal(leads.getLead(phone).serviceDetails.customerType, "I'm a creator/influencer");
+  assert.equal(leads.getLead(phone).serviceDetails.instagram, 'https://instagram.com/example');
+});
+
+test('Meta Ads captures business details and goal for the sales team', () => {
+  const phone = `service-ads-${Date.now()}`;
+  flow.startServiceFlow(phone, 'ads');
+  flow.processFlowResponse(phone, 'Fame Bakery');
+  flow.processFlowResponse(phone, 'Mumbai');
+  flow.processFlowResponse(phone, 'Cakes');
+  flow.processFlowResponse(phone, 'https://instagram.com/famebakery');
+  const complete = flow.processFlowResponse(phone, '1');
+  assert.equal(complete.done, true);
+  assert.equal(leads.getLead(phone).assignedTeam, 'Sales Team');
+  assert.equal(leads.getLead(phone).business, 'Fame Bakery');
+  assert.equal(leads.getLead(phone).serviceDetails.goal, 'WhatsApp Enquiries');
 });

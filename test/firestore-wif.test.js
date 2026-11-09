@@ -21,26 +21,19 @@ test('Firestore can initialize and fetch a lead using Vercel WIF without a JSON 
     GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID: 'provider',
   });
 
-  let appOptions;
+  let firestoreOptions;
   let wifConfig;
   const fakeDb = { collection: () => ({ doc: () => ({ get: async () => ({ exists: false }) }) }) };
-  const fakeAdmin = {
-    apps: [],
-    credential: { cert: () => { throw new Error('JSON-key path should not be used'); } },
-    initializeApp(options, name) {
-      appOptions = options;
-      const app = { name, firestore: () => fakeDb };
-      this.apps.push(app);
-      return app;
-    },
-  };
+  class FakeFirestore {
+    constructor(options) { firestoreOptions = options; return fakeDb; }
+  }
   const fakeAuth = {
     credentials: { expiry_date: Date.now() + 60_000 },
     getAccessToken: async () => ({ token: 'ephemeral-test-token' }),
   };
   const originalLoad = Module._load;
   Module._load = function (request, parent, isMain) {
-    if (request === 'firebase-admin') return fakeAdmin;
+    if (request === '@google-cloud/firestore') return { Firestore: FakeFirestore };
     if (request === '@vercel/oidc') return { getVercelOidcToken: async () => 'vercel-oidc-token' };
     if (request === 'google-auth-library') {
       return { ExternalAccountClient: { fromJSON: (value) => { wifConfig = value; return fakeAuth; } } };
@@ -52,13 +45,14 @@ test('Firestore can initialize and fetch a lead using Vercel WIF without a JSON 
     const firestore = require('../src/services/firestore');
     assert.equal(firestore.isConfigured(), true);
     assert.equal(await firestore.getLead('lead-1'), null);
-    assert.equal(appOptions.projectId, 'firebase-project-test');
+    assert.equal(firestoreOptions.projectId, 'firebase-project-test');
+    assert.equal(firestoreOptions.auth, fakeAuth);
+    assert.equal(firestoreOptions.preferRest, true);
     assert.equal(wifConfig.type, 'external_account');
     assert.match(wifConfig.audience, /workloadIdentityPools\/pool\/providers\/provider$/);
     assert.match(wifConfig.service_account_impersonation_url, /vercel%40example|vercel@example/);
-    const token = await appOptions.credential.getAccessToken();
-    assert.equal(token.access_token, 'ephemeral-test-token');
-    assert.ok(token.expires_in > 0 && token.expires_in <= 60);
+    const token = await firestoreOptions.auth.getAccessToken();
+    assert.equal(token.token, 'ephemeral-test-token');
     assert.equal(await wifConfig.subject_token_supplier.getSubjectToken(), 'vercel-oidc-token');
   } finally {
     Module._load = originalLoad;

@@ -2,9 +2,21 @@ const config = require('../config');
 
 const B = config.business;
 
-const WELCOME = `Hey! Welcome to ${B.name}. We're a social media and content agency in Mumbai helping businesses grow with strategy, content, influencers, and ads.
+const WELCOME = `Hi! 👋 Welcome to Famebros Studio.
 
-How can I help you?`;
+We're here to help you grow your business digitally. 🚀
+
+What service are you looking for?
+
+1️⃣ Social Media Management
+
+2️⃣ Meta Ads & Lead Generation
+
+3️⃣ Photography & Videography
+
+4️⃣ Website Development
+
+5️⃣ Talk to Our Team`;
 
 const ABOUT = `We're a social media marketing and content agency based in Mumbai. We combine strategy, creativity, and performance marketing to grow real businesses.
 
@@ -91,29 +103,16 @@ const MAIN_MENU = {
   header: `${B.name}`,
   body: WELCOME,
   footer: 'Reply with a number or tap an option',
-  button: 'Menu',
+  button: 'Choose service',
   sections: [
     {
-      title: 'Learn About Us',
+      title: 'Choose a service',
       rows: [
-        { id: 'about', title: 'About Us', description: 'Who we are' },
-        { id: 'services', title: 'Our Services', description: 'What we do' },
-        { id: 'process', title: 'Our Process', description: 'How we work' },
-      ],
-    },
-    {
-      title: 'Packages and Proof',
-      rows: [
-        { id: 'packages', title: 'Packages and Pricing', description: 'Starter, Growth, Premium' },
-        { id: 'clients', title: 'Case Studies', description: 'Brands and results' },
-        { id: 'faq', title: 'FAQs', description: 'Common questions' },
-      ],
-    },
-    {
-      title: 'Get In Touch',
-      rows: [
-        { id: 'contact', title: 'Book a Free Call', description: 'Talk to our team' },
-        { id: 'human', title: 'Talk to a Human', description: 'Connect with a team member' },
+        { id: 'service_social', title: 'Social Media Management' },
+        { id: 'service_ads', title: 'Meta Ads & Lead Generation' },
+        { id: 'service_photo', title: 'Photography & Videography' },
+        { id: 'service_website', title: 'Website Development' },
+        { id: 'service_team', title: 'Talk to Our Team' },
       ],
     },
   ],
