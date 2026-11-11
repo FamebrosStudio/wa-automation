@@ -144,6 +144,8 @@ test('Instagram link validation accepts only profile URLs on Instagram', () => {
 test('Meta Ads captures business details and goal without auto-assigning the lead', () => {
   const phone = `service-ads-${Date.now()}`;
   flow.startServiceFlow(phone, 'ads');
+  assert.equal(flow.getCurrentStep(phone).step, 'clientName');
+  flow.processFlowResponse(phone, 'Riya Shah');
   flow.processFlowResponse(phone, 'Fame Bakery');
   flow.processFlowResponse(phone, 'Mumbai');
   flow.processFlowResponse(phone, 'Cakes');
@@ -153,5 +155,36 @@ test('Meta Ads captures business details and goal without auto-assigning the lea
   assert.equal(leads.getLead(phone).assignedTeam, null);
   assert.equal(leads.getLead(phone).status, null);
   assert.equal(leads.getLead(phone).business, 'Fame Bakery');
+  assert.equal(leads.getLead(phone).name, 'Riya Shah');
   assert.equal(leads.getLead(phone).serviceDetails.goal, 'WhatsApp Enquiries');
+});
+
+test('every service option collects the client name, never as a substitute for business name', () => {
+  const cases = [
+    { service: 'social', step: 'businessOwner', answer: 'flow_businessOwner_0', next: 'clientName' },
+    { service: 'ads', step: 'clientName', answer: 'Riya Shah', next: 'businessName' },
+    { service: 'photo', step: 'shootType', answer: 'flow_shootType_0', next: 'clientName' },
+    { service: 'website', step: 'websiteType', answer: 'flow_websiteType_0', next: 'clientName' },
+    { service: 'other', step: 'requirement', answer: 'Logo design', next: 'name' },
+    { service: 'team', step: 'name', answer: 'Riya Shah', next: 'requirement' },
+  ];
+  for (const item of cases) {
+    const phone = `global-name-${item.service}-${Date.now()}-${Math.random()}`;
+    flow.startServiceFlow(phone, item.service);
+    assert.equal(flow.getCurrentStep(phone).step, item.step, item.service);
+    const result = flow.processFlowResponse(phone, item.answer);
+    assert.equal(result.step, item.next, item.service);
+    const identityStep = item.service === 'other' ? 'name' : item.service === 'team' ? 'requirement' : item.service === 'ads' ? 'businessName' : 'clientName';
+    if (item.service === 'other') {
+      const namePrompt = flow.processFlowResponse(phone, 'Riya Shah');
+      assert.equal(namePrompt.step, 'business');
+      assert.equal(leads.getLead(phone).name, 'Riya Shah');
+    } else if (item.service === 'team') {
+      assert.equal(leads.getLead(phone).name, 'Riya Shah');
+    } else if (item.service !== 'ads') {
+      assert.equal(flow.getCurrentStep(phone).step, identityStep, item.service);
+      assert.equal(flow.getCurrentStep(phone).question, 'What is your name?', item.service);
+    }
+    flow.cancelFlow(phone);
+  }
 });

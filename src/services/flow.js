@@ -22,9 +22,10 @@ const SERVICE_FLOWS = {
   },
   ads: {
     service: 'Meta Ads & Lead Generation',
-    intro: 'Looking to generate more leads and customers through Meta Ads? 📈\n\nWe can help you run targeted Facebook and Instagram advertising campaigns.\n\nPlease share your Business Name.',
+    intro: 'Looking to generate more leads and customers through Meta Ads? 📈\n\nWe can help you run targeted Facebook and Instagram advertising campaigns.\n\nFirst, what is your name?',
     steps: {
-      businessName: { question: 'Please share your Business Name.', field: 'businessName', next: 'location' },
+      clientName: { question: 'What is your name?', field: 'clientName', next: 'businessName' },
+      businessName: { question: 'What is your business name?', field: 'businessName', next: 'location' },
       location: { question: 'What is your Business Location?', field: 'location', next: 'product' },
       product: { question: 'What Product or Service do you offer?', field: 'product', next: 'instagram' },
       instagram: { question: 'Please share your Instagram Page Link (or type “none”).', field: 'instagram', next: 'goal' },
@@ -35,7 +36,8 @@ const SERVICE_FLOWS = {
     service: 'Photography & Videography',
     intro: 'Let\'s create something amazing! 🎥\n\nWhat type of shoot do you need?',
     steps: {
-      shootType: { question: 'What type of shoot do you need?', options: ['Product Shoot', 'Restaurant/Food Shoot', 'Fashion/Model Shoot', 'Brand Promotional Reel', 'Event Coverage', 'Other Shoot'], field: 'shootType', doneReply: 'Thank you! ✅\n\nOur production team will review your requirements and connect with you regarding shoot planning and pricing.' },
+      shootType: { question: 'What type of shoot do you need?', options: ['Product Shoot', 'Restaurant/Food Shoot', 'Fashion/Model Shoot', 'Brand Promotional Reel', 'Event Coverage', 'Other Shoot'], field: 'shootType', next: 'clientName' },
+      clientName: { question: 'What is your name?', field: 'clientName', doneReply: 'Thank you! ✅\n\nOur production team will review your requirements and connect with you regarding shoot planning and pricing.' },
     },
   },
   website: {
@@ -247,6 +249,13 @@ function restoreFlow(phone, state) {
   // Older website flows asked for a business name here. Resume them at the
   // client-name question without copying business data into the person's name.
   if (state?.service === 'website' && state.step === 'businessName') {
+    state = { ...state, step: 'clientName', data: { ...(state.data || {}) } };
+  }
+  // Resume existing ads and photography flows at the newly required identity step.
+  if (state?.service === 'ads' && state.step !== 'clientName' && !state.data?.clientName) {
+    state = { ...state, step: 'clientName', data: { ...(state.data || {}) } };
+  }
+  if (state?.service === 'photo' && state.step !== 'clientName' && !state.data?.clientName) {
     state = { ...state, step: 'clientName', data: { ...(state.data || {}) } };
   }
   const validStep = state?.service
