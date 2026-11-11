@@ -12,13 +12,14 @@ test('dashboard cleanup removes CRM records but preserves inbox and reply safegu
   leads.restore([
     { phone: '919900000001', lead: { phone: '919900000001', name: 'Test One' }, history: [{ role: 'user', content: 'test', ts: 1 }] },
     { phone: '919900000002', lead: { phone: '919900000002', name: 'Test Two' }, history: [] },
+    { phone: '919892506314', lead: { phone: '919892506314', name: 'Always-on test' }, history: [{ role: 'user', content: 'keep this', ts: 1 }] },
   ]);
 
   const collectionsQueried = [];
   const documentsDeleted = [];
   const tombstonesCreated = [];
-  let leadDocs = ['crm-doc-1', 'crm-doc-2'];
-  const phonesByDoc = { 'crm-doc-1': '919900000001', 'crm-doc-2': '919900000002' };
+  let leadDocs = ['crm-doc-1', 'crm-doc-2', 'crm-test-doc'];
+  const phonesByDoc = { 'crm-doc-1': '919900000001', 'crm-doc-2': '919900000002', 'crm-test-doc': '919892506314' };
   const db = {
     collection(name) {
       collectionsQueried.push(name);
@@ -70,14 +71,16 @@ test('dashboard cleanup removes CRM records but preserves inbox and reply safegu
     const authorization = `Basic ${Buffer.from('reset-test:reset-password').toString('base64')}`;
     const response = await fetch(`${root}/reset`, { method: 'POST', headers: { authorization } });
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { reset: true, deletedLeads: 2, safeguardsPreserved: true });
+    assert.deepEqual(await response.json(), { reset: true, deletedLeads: 2, preservedTestLeads: 1, safeguardsPreserved: true });
     assert.deepEqual(collectionsQueried, ['waAutomationLeads', 'waAutomationInbox', 'waAutomationInbox']);
     assert.equal(documentsDeleted.length, 2);
     assert.ok(documentsDeleted.every((doc) => doc.collection === 'waAutomationLeads'));
     assert.equal(tombstonesCreated.length, 2);
     assert.ok(tombstonesCreated.every(({ ref, data }) => ref.collection === 'waAutomationInbox' && data.status === 'dashboard-cleared-tombstone'));
     assert.ok(tombstonesCreated.every(({ data }) => data.phone && !('message' in data)), 'safeguard tombstones keep only the contact number and timestamp');
-    assert.equal(leads.snapshot().length, 0);
+    assert.equal(leadDocs.includes('crm-test-doc'), true, 'the persistent test-number CRM document remains in Firestore');
+    assert.equal(leads.snapshot().length, 1);
+    assert.equal(leads.snapshot()[0].phone, '919892506314');
   } finally {
     if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     Module._load = originalLoad;

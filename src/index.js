@@ -7,6 +7,7 @@ const config = require('./config');
 const { handleIncoming } = require('./handlers/messageHandler');
 const leads = require('./services/leads');
 const firestore = require('./services/firestore');
+const { isAlwaysAutomatedTestNumber } = require('./services/eligibility');
 const localCrm = new Map();
 
 const app = express();
@@ -261,6 +262,8 @@ app.get('/leads', dashboardAuth, async (req, res) => {
 app.post('/reset', dashboardAuth, async (req, res) => {
   try {
     let deletedLeads = 0;
+    const preservedTestPhones = new Set();
+    const cachedTestLeads = leads.snapshot().filter((record) => isAlwaysAutomatedTestNumber(record.phone || record.lead?.phone));
     if (firestore.isConfigured()) {
       const db = await firestore.database();
       if (!db) throw new Error('Firestore unavailable while clearing dashboard data');
@@ -271,7 +274,16 @@ app.post('/reset', dashboardAuth, async (req, res) => {
         const tombstones = db.batch();
         const deletions = db.batch();
         const clearedAt = new Date().toISOString();
-        snapshot.docs.forEach((doc) => {
+        const docsToDelete = snapshot.docs.filter((doc) => {
+          const record = doc.data();
+          if (isAlwaysAutomatedTestNumber(record?.phone || record?.lead?.phone)) {
+            preservedTestPhones.add(record.phone || record.lead.phone);
+            return false;
+          }
+          return true;
+        });
+        if (!docsToDelete.length) break;
+        docsToDelete.forEach((doc) => {
           const record = doc.data();
           if (record?.phone) {
             tombstones.set(db.collection('waAutomationInbox').doc(`dashboard-cleared-${firestore.recordId(record.phone)}`), {
@@ -287,14 +299,16 @@ app.post('/reset', dashboardAuth, async (req, res) => {
         // historical inbound messages were never archived.
         await tombstones.commit();
         await deletions.commit();
-        deletedLeads += snapshot.docs.length;
+        deletedLeads += docsToDelete.length;
       }
     } else {
-      deletedLeads = leads.snapshot().length;
+      deletedLeads = leads.snapshot().length - cachedTestLeads.length;
     }
-    leads.restore([]);
-    localCrm.clear();
-    return res.json({ reset: true, deletedLeads, safeguardsPreserved: true });
+    for (const phone of cachedTestLeads.map((record) => record.phone || record.lead?.phone)) preservedTestPhones.add(phone);
+    leads.restore(cachedTestLeads);
+    const preservedCrmIds = new Set([...preservedTestPhones].map((phone) => firestore.recordId(phone)));
+    for (const id of localCrm.keys()) if (!preservedCrmIds.has(id)) localCrm.delete(id);
+    return res.json({ reset: true, deletedLeads, preservedTestLeads: preservedTestPhones.size, safeguardsPreserved: true });
   } catch (error) {
     console.error('[reset] failed:', error.message);
     return res.status(503).json({ error: 'Reset failed' });

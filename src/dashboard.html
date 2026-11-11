@@ -491,7 +491,7 @@
 
     async function clearTestRecords() {
       const confirmed = window.confirm(
-        'Delete every lead and conversation shown in this dashboard? This cannot be undone. Archived inbound history, processed-message records, and chat safeguards will be kept.'
+        'Delete all CRM leads and conversations except +91 98925 06314? This cannot be undone. The test-number record and archived chat safeguards will be kept.'
       );
       if (!confirmed) return;
       const button = document.getElementById('clearTestData');
@@ -508,7 +508,9 @@
         renderSummary();
         renderPeople();
         renderBoard();
-        showToast(`Removed ${result.deletedLeads} test lead records. Chat safeguards are intact.`);
+        showToast(`Removed ${result.deletedLeads} leads. Kept ${result.preservedTestLeads || 0} test-number record(s).`);
+        clearInProgress = false;
+        await load();
       } catch (error) {
         showToast(error.message || 'Could not clear dashboard data');
       } finally {
