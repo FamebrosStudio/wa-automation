@@ -125,51 +125,12 @@ async function sendFlowChoices(to, step, options) {
     'Fashion/Model Shoot': 'Fashion/Model shoot',
     'Brand Promotional Reel': 'Brand promo reel',
   };
-  const examples = {
-    'Food & Beverage': 'Example: cafe, bakery, restaurant',
-    'Fashion & Beauty': 'Example: clothing, salon, skincare',
-    'Health & Fitness': 'Example: clinic, gym, wellness',
-    'Home & Real Estate': 'Example: interiors, property, decor',
-    'Retail & E-commerce': 'Example: store or online shop',
-    Education: 'Example: school, tutor, course',
-    'Professional Services': 'Example: consultant, agency, lawyer',
-    Other: 'Example: a category not listed above',
-    'Under 25K': 'Example: less than ₹25,000/month',
-    '25K-50K': 'Example: ₹25,000–₹50,000/month',
-    '50K-1L': 'Example: ₹50,000–₹1,00,000/month',
-    '1L+': 'Example: more than ₹1,00,000/month',
-    Immediately: 'Example: ready to start now',
-    'This month': 'Example: within the next few weeks',
-    'Next month': 'Example: planning ahead',
-    'Just exploring': 'Example: researching for now',
-    'WhatsApp Enquiries': 'Example: get leads in WhatsApp',
-    'Lead Form Enquiries': 'Example: collect form submissions',
-    'Website Sales': 'Example: sell products online',
-    'Store Visits': 'Example: bring customers in-store',
-    'Brand Awareness': 'Example: reach more people',
-    'Business Website': 'Example: company information website',
-    'E-commerce Website': 'Example: online product store',
-    'Portfolio Website': 'Example: showcase your work',
-    'Landing Page': 'Example: one campaign-focused page',
-    'Website Redesign': 'Example: improve an existing site',
-    'Need Guidance': 'Example: help choosing a website type',
-    'Product Shoot': 'Example: products for an online store',
-    'Restaurant/Food Shoot': 'Example: menu and food photos',
-    'Fashion/Model Shoot': 'Example: clothing catalogue shoot',
-    'Brand Promotional Reel': 'Example: short brand video',
-    'Event Coverage': 'Example: launch or company event',
-    'Other Shoot': 'Example: another photo/video requirement',
-  };
   await whatsapp.list(to, {
     body: 'Tap an option to continue', button: 'Choose',
-    sections: [{ title: 'Options', rows: options.map((text, index) => {
-      const description = examples[text];
-      return {
+    sections: [{ title: 'Options', rows: options.map((text, index) => ({
         id: `flow_${step}_${index}`,
         title: `${options.length > 1 ? `${index + 1} ` : ''}${shortLabels[text] || text}`.slice(0, 24),
-        ...(description ? { description: description.slice(0, 72) } : {}),
-      };
-    }) }],
+    })) }],
   });
 }
 

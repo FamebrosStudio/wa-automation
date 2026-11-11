@@ -255,22 +255,30 @@ app.get('/leads', dashboardAuth, async (req, res) => {
   });
 });
 
-// Reset all lead data (requires dashboard auth)
+// Clear dashboard/CRM data only. Inbox archives and processed-message records
+// are safeguards against replying to old chats and duplicate webhook events;
+// lock documents are also left alone because a handler may currently own one.
 app.post('/reset', dashboardAuth, async (req, res) => {
   try {
+    let deletedLeads = 0;
     if (firestore.isConfigured()) {
       const db = await firestore.database();
-      if (db) {
-        for (const collectionName of ['waAutomationLeads', 'waAutomationMessages', 'waAutomationInbox', 'waAutomationLocks']) {
-          const snapshot = await db.collection(collectionName).get();
-          const batch = db.batch();
-          snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-          if (snapshot.docs.length) await batch.commit();
-        }
+      if (!db) throw new Error('Firestore unavailable while clearing dashboard data');
+      const leadCollection = db.collection('waAutomationLeads');
+      while (true) {
+        const snapshot = await leadCollection.limit(400).get();
+        if (!snapshot.docs.length) break;
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        deletedLeads += snapshot.docs.length;
       }
+    } else {
+      deletedLeads = leads.snapshot().length;
     }
     leads.restore([]);
-    return res.json({ reset: true });
+    localCrm.clear();
+    return res.json({ reset: true, deletedLeads, safeguardsPreserved: true });
   } catch (error) {
     console.error('[reset] failed:', error.message);
     return res.status(503).json({ error: 'Reset failed' });

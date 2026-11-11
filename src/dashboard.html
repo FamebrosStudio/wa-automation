@@ -260,6 +260,7 @@
     .btn-secondary{background:#171c19;color:#e8eee9;border-color:#303a34}.btn-secondary:hover{background:#222a25}
     .btn-primary{background:#2bb673;color:#07130c}.btn-primary:hover{background:#42ca85;opacity:1}
     .btn-outline{background:#101411;border-color:#303a34;color:#d7dfd9}.btn-outline:hover{background:#1b211d}
+    .btn-danger{background:#301c1c;border-color:#512c2c;color:#f09a95}.btn-danger:hover{background:#422020}
     .btn-sm{height:30px;padding:0 10px;font-size:11px}
     .pipeline-summary{display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:10px;margin-top:18px;max-width:700px}
     .summary-badge{min-height:60px;justify-content:flex-start;border-radius:11px;background:#121614;padding:10px 13px;color:#e4ebe6;font-size:13px;font-weight:600;box-shadow:0 1px 2px #0003}
@@ -346,6 +347,7 @@
           <div class="head-actions">
             <button id="mobileNewBtn" class="btn btn-secondary btn-sm" type="button" aria-expanded="false" aria-controls="sidebar" style="display:none">Review new <span id="mobileNewCount">0</span></button>
             <a id="exportCrm" class="btn btn-outline" href="/leads/export" download="famebros-crm.xlsx" aria-label="Export all CRM leads and conversation history to Excel">Download full CRM</a>
+            <button id="clearTestData" class="btn btn-danger btn-sm" type="button">Clear test records</button>
             <button id="refresh" class="btn btn-secondary" type="button"><span id="refreshText">Refresh</span></button>
           </div>
         </header>
@@ -401,6 +403,7 @@
     let selectedId = null;
     let openAssignFor = null;
     let loadPromise = null;
+    let clearInProgress = false;
     let activeTab = 'Qualified';
     let toastTimer;
     const peopleEl = document.getElementById('people');
@@ -448,6 +451,7 @@
           const response = await fetch('/leads', { cache: 'no-store', signal: controller.signal });
           if (!response.ok) throw new Error(`Could not load leads (${response.status})`);
           const data = await response.json();
+          if (clearInProgress) return;
           leads = data.leads || [];
           renderSummary();
           renderPeople();
@@ -463,6 +467,35 @@
         }
       })();
       return loadPromise;
+    }
+
+    async function clearTestRecords() {
+      const confirmed = window.confirm(
+        'Delete every lead and conversation shown in this dashboard? This cannot be undone. Archived inbound history, processed-message records, and chat safeguards will be kept.'
+      );
+      if (!confirmed) return;
+      const button = document.getElementById('clearTestData');
+      button.disabled = true;
+      button.textContent = 'Clearing…';
+      clearInProgress = true;
+      try {
+        const response = await fetch('/reset', { method: 'POST', cache: 'no-store' });
+        if (!response.ok) throw new Error(`Could not clear dashboard data (${response.status})`);
+        const result = await response.json();
+        leads = [];
+        selectedId = null;
+        openAssignFor = null;
+        renderSummary();
+        renderPeople();
+        renderBoard();
+        showToast(`Removed ${result.deletedLeads} test lead records. Chat safeguards are intact.`);
+      } catch (error) {
+        showToast(error.message || 'Could not clear dashboard data');
+      } finally {
+        clearInProgress = false;
+        button.disabled = false;
+        button.textContent = 'Clear test records';
+      }
     }
 
     function renderSummary() {
@@ -751,6 +784,7 @@
 
     searchEl.addEventListener('input',()=>{renderPeople();renderBoard();});
     document.getElementById('refresh').addEventListener('click',load);
+    document.getElementById('clearTestData').addEventListener('click',clearTestRecords);
     document.getElementById('closeDialog').addEventListener('click',()=>dialog.close());
     dialog.addEventListener('click',e=>{if(e.target===dialog) dialog.close();});
     window.addEventListener('resize',()=>{renderSummary();renderBoard();});

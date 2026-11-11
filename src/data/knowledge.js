@@ -98,7 +98,7 @@ const MAIN_MENU = {
     {
       title: 'Choose a service',
       rows: [
-        { id: 'service_social', title: '1️⃣ Social Media Mgmt', description: 'Strategy, content, and account growth' },
+        { id: 'service_social', title: 'Social Media Management', description: 'Strategy, content, and account growth' },
         { id: 'service_ads', title: '2️⃣ Meta Ads & Leads', description: 'Facebook and Instagram lead campaigns' },
         { id: 'service_photo', title: '3️⃣ Photo & Video', description: 'Product, food, brand, and event shoots' },
         { id: 'service_website', title: '4️⃣ Website Development', description: 'Business websites and online stores' },
