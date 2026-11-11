@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#09090b">
   <title>Lead pipeline · Famebros Studio</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     /* shadcn/ui tokens - dark neutral */
     :root{
@@ -308,6 +306,46 @@
       .mobile-tabs{padding:8px 14px}.lane-description{font-size:10px}h1{font-size:22px}
       .sidebar.open .sidebar-close{display:inline-flex}
     }
+    /* Lightweight mobile-first polish: no remote font dependency; safe-area aware for iPhone. */
+    html{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;scrollbar-gutter:stable}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh;min-height:100dvh}
+    @supports (-webkit-touch-callout:none){input,select,textarea{font-size:16px!important}}
+    @media(max-width:760px){
+      body{overscroll-behavior-y:none}
+      .main{height:100vh;height:100dvh;min-height:0}
+      .sticky-header{padding:calc(10px + env(safe-area-inset-top)) 14px 10px;backdrop-filter:none;-webkit-backdrop-filter:none;background:#090b0a}
+      .page-head{gap:9px}.intro{max-width:38ch;font-size:12px}
+      .head-actions{gap:6px}.head-actions .btn{min-height:40px;height:auto;padding:7px 10px}
+      #exportCrm{flex:1}
+      .pipeline-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}
+      .summary-badge{min-height:48px;border-radius:9px}
+      .status-exports{flex-wrap:nowrap;overflow-x:auto;padding-bottom:3px;-webkit-overflow-scrolling:touch}
+      .status-exports-label{display:none}.status-exports .btn{flex:0 0 auto;min-height:36px}
+      .filter-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px 14px}
+      .filter-search{grid-column:1/-1;min-width:0}.filter-control input,.filter-control select{width:100%;height:42px;font-size:16px}
+      #clearFilters{min-height:40px}.filter-count{grid-column:1/-1;margin:0}
+      .mobile-tabs{position:sticky;top:0;z-index:10;padding:8px 12px;background:#0d100e}
+      .tabs-list{height:44px;gap:3px;padding:4px;overflow-x:auto}
+      .tab{height:36px;min-width:0;padding:0 5px;font-size:12px;white-space:nowrap;touch-action:manipulation}
+      .board-wrap{min-height:0;flex:1;overflow:auto;padding:10px 12px calc(20px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+      .lane{padding:12px;border-radius:12px}.lane-head{margin-bottom:8px}
+      .lead-card{min-height:100px;padding:14px;touch-action:pan-y}.card-details{min-height:40px;padding:0 14px}
+      .sidebar.open{padding:calc(12px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+      .sidebar.open .people{-webkit-overflow-scrolling:touch}
+      dialog{max-height:calc(100dvh - env(safe-area-inset-top));padding-bottom:env(safe-area-inset-bottom);overscroll-behavior:contain}
+      .dialog-shell{max-height:calc(100dvh - env(safe-area-inset-top))}.dialog-head{padding:16px}
+      .dialog-body{padding:14px 16px 22px;-webkit-overflow-scrolling:touch}
+      .details-grid,.form-grid{grid-template-columns:1fr}.form-field input,.form-field select,.form-field textarea{min-height:44px;font-size:16px}
+      .dialog-actions{position:sticky;bottom:0;padding:10px 0 calc(4px + env(safe-area-inset-bottom));background:#111512}
+      .toast{right:12px;left:12px;bottom:calc(12px + env(safe-area-inset-bottom));justify-content:flex-start}
+      .skeleton{animation:none;background:#272e29}
+    }
+    @media(max-width:380px){
+      h1{font-size:20px}.page-eyebrow{font-size:10px}.summary-badge{padding:7px;font-size:10px}
+      .summary-badge strong{font-size:12px}.filter-control label{font-size:10px}
+      .tab{font-size:11px;padding-inline:3px}
+    }
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   </style>
 </head>
 <body>
