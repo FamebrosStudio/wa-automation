@@ -67,7 +67,9 @@
     .person-copy{min-width:0;flex:1}
     .person-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;font-weight:500}
     .person-service{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;color:var(--muted-foreground)}
-    .person-entry{animation:fadeIn .3s ease both}
+    .person-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;animation:fadeIn .3s ease both}
+    .person-details{height:30px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted-foreground);font-size:11px;cursor:pointer}
+    .person-details:hover{background:var(--accent);color:var(--foreground)}
 
     /* Dropdown menu - shadcn */
     .assign-menu{margin:2px 0 6px 42px;padding:4px;border:1px solid var(--border);border-radius:8px;background:#18181b;box-shadow:0 10px 15px -3px rgba(0,0,0,.5)}
@@ -134,6 +136,9 @@
     .lead-card:active{cursor:grabbing;transform:scale(.99)}
     .lead-card.is-selected{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
     .lead-card.is-dragging{opacity:.5}
+    .card-actions{display:flex;justify-content:flex-end;margin-top:10px}
+    .card-details{min-height:30px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:transparent;color:var(--foreground);font-size:12px;font-weight:500;cursor:pointer}
+    .card-details:hover{background:var(--accent);border-color:#52525b}
     .lead-card-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
     .lead-name{font-size:14px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .lead-business{margin-top:2px;color:var(--muted-foreground);font-size:12px;overflow-wrap:anywhere}
@@ -253,6 +258,7 @@
           </div>
           <div class="head-actions">
             <button id="mobileNewBtn" class="btn btn-secondary btn-sm" type="button" style="display:none">New <span id="mobileNewCount">0</span></button>
+            <a id="exportCrm" class="btn btn-outline" href="/leads/export" download="famebros-crm.xlsx" aria-label="Export all CRM leads and conversation history to Excel">Export CRM</a>
             <button id="refresh" class="btn btn-secondary" type="button"><span id="refreshText">Refresh</span></button>
           </div>
         </header>
@@ -413,11 +419,13 @@
         copy.append(makeText('span','person-service', lead.service||'New enquiry'));
         button.append(copy);
         button.addEventListener('click', () => { openAssignFor = openAssignFor===lead.id?null:lead.id; renderPeople(); });
-        button.addEventListener('dblclick', () => openLead(lead.id));
-        button.addEventListener('keydown', e => { if(e.key==='Enter') openLead(lead.id); });
         entry.append(button);
+        const detailsButton=makeText('button','person-details','Details'); detailsButton.type='button';
+        detailsButton.setAttribute('aria-label',`View details for ${displayName(lead)}`);
+        detailsButton.addEventListener('click',()=>openLead(lead.id));
+        entry.append(detailsButton);
         if (openAssignFor === lead.id) {
-          const menu = document.createElement('div'); menu.className='assign-menu'; menu.setAttribute('role','group');
+          const menu = document.createElement('div'); menu.className='assign-menu'; menu.style.gridColumn='1 / -1'; menu.setAttribute('role','group');
           menu.append(makeText('span','assign-menu-label','Move entry to'));
           for (const s of STATUSES) {
             const opt = makeText('button','assign-option', s.name); opt.type='button';
@@ -459,12 +467,10 @@
     }
 
     function createLeadCard(lead) {
-      const card=document.createElement('button'); card.type='button'; card.draggable=true;
+      const card=document.createElement('article'); card.draggable=true;
       card.className=`lead-card fade-in${selectedId===lead.id?' is-selected':''}`; card.dataset.id=lead.id;
-      card.title='Drag to change status · Click to open · Double-click for details';
+      card.title='Drag to change status';
       card.addEventListener('click',()=>selectLead(lead.id));
-      card.addEventListener('dblclick',()=>openLead(lead.id));
-      card.addEventListener('keydown',e=>{if(e.key==='Enter') openLead(lead.id);});
       card.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',lead.id);e.dataTransfer.effectAllowed='move';card.classList.add('is-dragging');});
       card.addEventListener('dragend',()=>card.classList.remove('is-dragging'));
       const top=document.createElement('div'); top.className='lead-card-top';
@@ -480,6 +486,11 @@
       meta.append(makeText('span','',lead.owner||'Unassigned'));
       meta.append(makeText('span','', lead.lastSeen ? new Date(lead.lastSeen).toLocaleDateString() : ''));
       card.append(meta);
+      const actions=document.createElement('div'); actions.className='card-actions';
+      const details=makeText('button','card-details','Details'); details.type='button';
+      details.setAttribute('aria-label',`View details for ${displayName(lead)}`);
+      details.addEventListener('click',e=>{e.stopPropagation();openLead(lead.id);});
+      actions.append(details); card.append(actions);
       return card;
     }
 
@@ -504,7 +515,8 @@
         const details=document.createElement('div'); details.className='details-grid';
         addDetail(details,'Client name',lead.name||lead.business);
         addDetail(details,'Lead ID',id);
-        addDetail(details,'Service',lead.service);
+         addDetail(details,'Service',lead.service);
+         addDetail(details,'Business category',lead.category);
         addDetail(details,'Contact number',data.phone, data.phone?`tel:${data.phone}`:null);
         addDetail(details,'Business',lead.business);
         addDetail(details,'Owner / team',crm.owner||lead.assignedTeam);

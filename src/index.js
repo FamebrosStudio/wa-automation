@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const ExcelJS = require('exceljs');
 const config = require('./config');
 const { handleIncoming } = require('./handlers/messageHandler');
 const leads = require('./services/leads');
@@ -78,6 +79,95 @@ function normalizeLeadStatus(lead) {
 function safeRecordId(id) {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id);
 }
+
+app.get('/leads/export', dashboardAuth, async (req, res) => {
+  try {
+    const stored = await firestore.loadAll();
+    const records = stored || leads.snapshot();
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Famebros Studio';
+    workbook.created = new Date();
+    workbook.subject = 'Lead pipeline CRM export';
+
+    const sheet = workbook.addWorksheet('Leads', { views: [{ state: 'frozen', ySplit: 1 }] });
+    sheet.columns = [
+      { header: 'Lead ID', key: 'id', width: 24 },
+      { header: 'Client name', key: 'name', width: 24 },
+      { header: 'Phone', key: 'phone', width: 18 },
+      { header: 'Business', key: 'business', width: 28 },
+      { header: 'Category', key: 'category', width: 22 },
+      { header: 'Service', key: 'service', width: 28 },
+      { header: 'Stage', key: 'status', width: 18 },
+      { header: 'Lead source', key: 'source', width: 18 },
+      { header: 'Budget', key: 'budget', width: 18 },
+      { header: 'Timeline', key: 'timeline', width: 18 },
+      { header: 'Instagram profile', key: 'instagram', width: 38 },
+      { header: 'Owner / team', key: 'owner', width: 22 },
+      { header: 'Contact type', key: 'contactType', width: 20 },
+      { header: 'Bot paused', key: 'botPaused', width: 14 },
+      { header: 'Human takeover', key: 'humanTakeover', width: 18 },
+      { header: 'Opted out', key: 'optedOut', width: 14 },
+      { header: 'First seen', key: 'firstSeen', width: 24 },
+      { header: 'Last activity', key: 'lastSeen', width: 24 },
+      { header: 'Internal notes', key: 'notes', width: 40 },
+      { header: 'Tags', key: 'tags', width: 28 },
+      { header: 'All service details (JSON)', key: 'serviceDetails', width: 60 },
+    ];
+    const activity = workbook.addWorksheet('Conversation history', { views: [{ state: 'frozen', ySplit: 1 }] });
+    activity.columns = [
+      { header: 'Lead ID', key: 'id', width: 24 },
+      { header: 'Client name', key: 'name', width: 24 },
+      { header: 'Phone', key: 'phone', width: 18 },
+      { header: 'Date and time', key: 'timestamp', width: 24 },
+      { header: 'From', key: 'role', width: 16 },
+      { header: 'Message', key: 'content', width: 90 },
+    ];
+    for (const worksheet of [sheet, activity]) {
+      worksheet.autoFilter = { from: 'A1', to: `${worksheet.getColumn(worksheet.columnCount).letter}1` };
+      worksheet.getRow(1).height = 26;
+      worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF14532D' } };
+      worksheet.getRow(1).alignment = { vertical: 'middle', wrapText: true };
+    }
+    for (const record of records) {
+      const lead = record.lead || record;
+      if (!lead?.phone) continue;
+      const id = firestore.recordId(lead.phone);
+      const crm = record.crm || {};
+      const serviceDetails = lead.serviceDetails || {};
+      sheet.addRow({
+        id, name: lead.name || '', phone: lead.phone, business: lead.business || '',
+        category: lead.category || serviceDetails.category || '', service: lead.service || '',
+        status: lead.status || 'New', source: lead.leadSource || '', budget: lead.budget || '',
+        timeline: lead.timeline || '', instagram: lead.instagram || serviceDetails.instagram || '',
+        owner: crm.owner || lead.assignedTeam || '', contactType: crm.contactType || lead.contactType || '',
+        botPaused: Boolean(crm.botPaused), humanTakeover: Boolean(crm.humanTakeover),
+        optedOut: Boolean(crm.optedOut || lead.optedOut), firstSeen: lead.firstSeen || '',
+        lastSeen: lead.lastSeen || '', notes: crm.notes || lead.notes || '',
+        tags: (crm.tags || (lead.service ? [lead.service] : [])).join(', '),
+        serviceDetails: JSON.stringify(serviceDetails),
+      });
+      for (const message of record.history || []) {
+        activity.addRow({
+          id, name: lead.name || '', phone: lead.phone,
+          timestamp: message.ts ? new Date(message.ts).toISOString() : '',
+          role: message.role || '', content: message.content || '',
+        });
+      }
+    }
+    sheet.eachRow((row, rowNumber) => { if (rowNumber > 1) row.alignment = { vertical: 'top', wrapText: true }; });
+    activity.eachRow((row, rowNumber) => { if (rowNumber > 1) row.alignment = { vertical: 'top', wrapText: true }; });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const date = new Date().toISOString().slice(0, 10);
+    res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.set('Content-Disposition', `attachment; filename="famebros-crm-${date}.xlsx"`);
+    return res.status(200).send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('[export] CRM export failed:', error.message);
+    return res.status(503).json({ error: 'CRM export unavailable' });
+  }
+});
 
 app.get('/leads/:id', dashboardAuth, async (req, res) => {
   if (!safeRecordId(req.params.id)) return res.sendStatus(400);

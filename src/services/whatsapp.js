@@ -1,14 +1,24 @@
 const axios = require('axios');
 const config = require('../config');
-const { TEST_NUMBERS } = require('./eligibility');
+const { eligibility, isAlwaysAutomatedTestNumber } = require('./eligibility');
 
 const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 
 async function send(payload, options = {}) {
-  if (process.env.BOT_ENABLED !== 'true' && !options.force) throw new Error('Sales automation is disabled');
-  if (!options.force) {
+  const testRecipient = isAlwaysAutomatedTestNumber(payload.to);
+  if (process.env.BOT_ENABLED !== 'true' && !options.force && !testRecipient) throw new Error('Sales automation is disabled');
+  if (testRecipient && !options.force) {
     const firestore = require('./firestore');
-    const { eligibility } = require('./eligibility');
+    if (firestore.isConfigured()) {
+      const record = await firestore.getLeadByPhone(payload.to);
+      const decision = record && eligibility(record);
+      if (decision && !decision.allowed && decision.reason === 'paused-or-opted-out') {
+        throw new Error('Automated send suppressed: paused-or-opted-out');
+      }
+    }
+  }
+  if (!options.force && !testRecipient) {
+    const firestore = require('./firestore');
     if (!firestore.isConfigured()) throw new Error('Durable contact eligibility is unavailable');
     const decision = eligibility(await firestore.getLeadByPhone(payload.to));
     if (!decision.allowed) throw new Error(`Automated send suppressed: ${decision.reason}`);

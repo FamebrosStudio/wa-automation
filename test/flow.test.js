@@ -55,19 +55,47 @@ test('restoring one lead does not clear other cached leads or conversations', ()
   assert.equal(leads.getHistory(restored)[0].content, 'persisted');
 });
 
-test('social media service captures customer type and Instagram without auto-qualifying', () => {
+test('social media service asks one detail at a time, validates Instagram URLs, and saves details as collected', () => {
   const phone = `service-social-${Date.now()}`;
   const first = flow.startServiceFlow(phone, 'social');
   assert.match(first.intro, /complete Social Media Management/);
   assert.deepEqual(first.options, ['I own a business', "I'm a creator/influencer", "I'm starting a new business"]);
   flow.processFlowResponse(phone, '2');
-  const complete = flow.processFlowResponse(phone, 'https://instagram.com/example');
+  assert.equal(flow.getCurrentStep(phone).step, 'clientName');
+  flow.processFlowResponse(phone, 'Priya Sharma');
+  assert.equal(flow.getCurrentStep(phone).step, 'businessName');
+  assert.equal(leads.getLead(phone).name, 'Priya Sharma');
+  flow.processFlowResponse(phone, 'Priya’s Kitchen');
+  assert.equal(flow.getCurrentStep(phone).step, 'category');
+  assert.equal(leads.getLead(phone).business, 'Priya’s Kitchen');
+  assert.deepEqual(flow.getCurrentStep(phone).options, [
+    'Food & Beverage', 'Fashion & Beauty', 'Health & Fitness', 'Home & Real Estate',
+    'Retail & E-commerce', 'Education', 'Professional Services', 'Other',
+  ]);
+  flow.processFlowResponse(phone, '1');
+  assert.equal(flow.getCurrentStep(phone).step, 'instagram');
+  const invalid = flow.processFlowResponse(phone, 'not a url');
+  assert.equal(invalid.invalid, true);
+  assert.equal(flow.getCurrentStep(phone).step, 'instagram', 'invalid input must keep asking for the Instagram link');
+  assert.equal(leads.getLead(phone).instagram, undefined);
+  const complete = flow.processFlowResponse(phone, 'https://www.instagram.com/example/');
   assert.equal(complete.done, true);
   assert.equal(leads.getLead(phone).service, 'Social Media Management');
   assert.equal(leads.getLead(phone).assignedTeam, null);
   assert.equal(leads.getLead(phone).status, null);
   assert.equal(leads.getLead(phone).serviceDetails.customerType, "I'm a creator/influencer");
-  assert.equal(leads.getLead(phone).serviceDetails.instagram, 'https://instagram.com/example');
+  assert.equal(leads.getLead(phone).name, 'Priya Sharma');
+  assert.equal(leads.getLead(phone).business, 'Priya’s Kitchen');
+  assert.equal(leads.getLead(phone).category, 'Food & Beverage');
+  assert.equal(leads.getLead(phone).serviceDetails.instagram, 'https://www.instagram.com/example/');
+});
+
+test('Instagram link validation accepts only profile URLs on Instagram', () => {
+  assert.equal(flow.normalizeInstagramProfileUrl('instagram.com/shop.name'), 'https://www.instagram.com/shop.name/');
+  for (const invalid of [
+    'example.com/shop', 'https://instagram.com.evil.example/shop', 'https://instagram.com/p/abc',
+    'https://instagram.com/explore', 'javascript:alert(1)', 'https://instagram.com/a/b', '@shop',
+  ]) assert.equal(flow.normalizeInstagramProfileUrl(invalid), null, invalid);
 });
 
 test('Meta Ads captures business details and goal without auto-assigning the lead', () => {

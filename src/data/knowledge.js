@@ -98,12 +98,12 @@ const MAIN_MENU = {
     {
       title: 'Choose a service',
       rows: [
-        { id: 'service_social', title: '1️⃣ Social Media Mgmt', description: 'Social Media Management' },
-        { id: 'service_ads', title: '2️⃣ Meta Ads & Leads', description: 'Meta Ads & Lead Generation' },
-        { id: 'service_photo', title: '3️⃣ Photo & Video', description: 'Photography & Videography' },
-        { id: 'service_website', title: '4️⃣ Website Development', description: 'Website Development' },
-        { id: 'service_other', title: '5️⃣ Other Services', description: 'Other Services' },
-        { id: 'service_team', title: '6️⃣ Talk to Our Team', description: 'Talk to Our Team' },
+        { id: 'service_social', title: '1️⃣ Social Media Mgmt', description: 'Strategy, content, and account growth' },
+        { id: 'service_ads', title: '2️⃣ Meta Ads & Leads', description: 'Facebook and Instagram lead campaigns' },
+        { id: 'service_photo', title: '3️⃣ Photo & Video', description: 'Product, food, brand, and event shoots' },
+        { id: 'service_website', title: '4️⃣ Website Development', description: 'Business websites and online stores' },
+        { id: 'service_other', title: '5️⃣ Other Services', description: 'SEO, influencer marketing, and more' },
+        { id: 'service_team', title: '6️⃣ Talk to Our Team', description: 'Speak directly with our team' },
       ],
     },
   ],

@@ -27,5 +27,7 @@ test('welcome shows clickable service choices with the expected route IDs', () =
   assert.deepEqual(rows.map((row) => row.id), [
     'service_social', 'service_ads', 'service_photo', 'service_website', 'service_other', 'service_team',
   ]);
-  assert.match(rows[1].description, /Meta Ads & Lead Generation/);
+  assert.match(rows[1].description, /Facebook and Instagram lead campaigns/);
+  assert.notEqual(rows[2].title, rows[2].description, 'menu title and description should not repeat each other');
+  assert.match(rows[2].description, /Product, food/);
 });

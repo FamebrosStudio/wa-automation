@@ -104,6 +104,9 @@ test('completion sends thank you once then locks — Ok/Thanks/10 messages do no
     // complete social flow manually
     const { processFlowResponse } = flow;
     processFlowResponse(p, '1');
+    processFlowResponse(p, 'Alex');
+    processFlowResponse(p, 'Acme');
+    processFlowResponse(p, 'Food & Beverage');
     const done = processFlowResponse(p, 'https://instagram.com/x');
     assert.equal(done.done, true);
     // Simulate handler sending once via flow path: call handleIncoming for final answer? Use direct flow+handler path:
@@ -115,6 +118,9 @@ test('completion sends thank you once then locks — Ok/Thanks/10 messages do no
     leads.updateLead(p, { completionMessageSent: false, conversationStatus: null });
     const before = sent.length;
     await handleIncoming({ id: mid(), type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_identity_0' } } }, p);
+    await handleIncoming({ id: mid(), type: 'text', text: { body: 'Alex' } }, p);
+    await handleIncoming({ id: mid(), type: 'text', text: { body: 'Acme' } }, p);
+    await handleIncoming({ id: mid(), type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_category_0' } } }, p);
     await handleIncoming({ id: mid(), type: 'text', text: { body: 'https://instagram.com/a' } }, p);
     const thankYouCount = sent.filter(m => /Thank you/.test(m.body || JSON.stringify(m))).length;
     // At least one thank you may have been produced by the second completion; collect state

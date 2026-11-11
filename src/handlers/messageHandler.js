@@ -3,7 +3,7 @@ const K = require('../data/knowledge');
 const leads = require('../services/leads');
 const flow = require('../services/flow');
 const firestore = require('../services/firestore');
-const { eligibility, hasFirstContactEnrollment } = require('../services/eligibility');
+const { eligibility, hasFirstContactEnrollment, isAlwaysAutomatedTestNumber } = require('../services/eligibility');
 
 const processed = new Set();
 const sessions = new Map();
@@ -87,16 +87,23 @@ async function handleFlowText(from, text) {
   if (!/^flow_[a-z0-9]+_\d+$/i.test(text)) leads.classifyLead(from, text, null);
   const result = flow.processFlowResponse(from, text);
   if (!result) return false;
+  const persistProgress = async () => {
+    if (!firestore.isConfigured()) return;
+    const current = leads.snapshot(from)[0];
+    if (current) await firestore.saveLead({ ...current, activeFlow: flow.snapshotFlow(from) });
+  };
   // Completion: send thank-you exactly once, then lock the conversation.
   if (result.done) {
     const lead = leads.getLead(from);
     if (lead.completionMessageSent) return true; // already sent — never resend
     leads.addMessage(from, 'assistant', result.reply);
+    await persistProgress();
     await whatsapp.text(from, result.reply);
     leads.updateLead(from, { conversationStatus: 'COMPLETED', completionMessageSent: true });
     return true;
   }
   leads.addMessage(from, 'assistant', result.reply);
+  await persistProgress();
   await whatsapp.text(from, result.reply);
   if (result.options?.length) await sendFlowChoices(from, result.step, result.options);
   if (result.cancelled) {
@@ -118,12 +125,50 @@ async function sendFlowChoices(to, step, options) {
     'Fashion/Model Shoot': 'Fashion/Model shoot',
     'Brand Promotional Reel': 'Brand promo reel',
   };
+  const examples = {
+    'I own a business': 'Example: salon or restaurant owner',
+    "I'm a creator/influencer": 'Example: content creator',
+    "I'm starting a new business": 'Example: launching a new brand',
+    'Food & Beverage': 'Example: cafe, bakery, restaurant',
+    'Fashion & Beauty': 'Example: clothing, salon, skincare',
+    'Health & Fitness': 'Example: clinic, gym, wellness',
+    'Home & Real Estate': 'Example: interiors, property, decor',
+    'Retail & E-commerce': 'Example: store or online shop',
+    Education: 'Example: school, tutor, course',
+    'Professional Services': 'Example: consultant, agency, lawyer',
+    Other: 'Example: a category not listed above',
+    'Under 25K': 'Example: less than ₹25,000/month',
+    '25K-50K': 'Example: ₹25,000–₹50,000/month',
+    '50K-1L': 'Example: ₹50,000–₹1,00,000/month',
+    '1L+': 'Example: more than ₹1,00,000/month',
+    Immediately: 'Example: ready to start now',
+    'This month': 'Example: within the next few weeks',
+    'Next month': 'Example: planning ahead',
+    'Just exploring': 'Example: researching for now',
+    'WhatsApp Enquiries': 'Example: get leads in WhatsApp',
+    'Lead Form Enquiries': 'Example: collect form submissions',
+    'Website Sales': 'Example: sell products online',
+    'Store Visits': 'Example: bring customers in-store',
+    'Brand Awareness': 'Example: reach more people',
+    'Business Website': 'Example: company information website',
+    'E-commerce Website': 'Example: online product store',
+    'Portfolio Website': 'Example: showcase your work',
+    'Landing Page': 'Example: one campaign-focused page',
+    'Website Redesign': 'Example: improve an existing site',
+    'Need Guidance': 'Example: help choosing a website type',
+    'Product Shoot': 'Example: products for an online store',
+    'Restaurant/Food Shoot': 'Example: menu and food photos',
+    'Fashion/Model Shoot': 'Example: clothing catalogue shoot',
+    'Brand Promotional Reel': 'Example: short brand video',
+    'Event Coverage': 'Example: launch or company event',
+    'Other Shoot': 'Example: another photo/video requirement',
+  };
   await whatsapp.list(to, {
     body: 'Tap an option to continue', button: 'Choose',
     sections: [{ title: 'Options', rows: options.map((text, index) => ({
       id: `flow_${step}_${index}`,
       title: `${index + 1} ${shortLabels[text] || text}`.slice(0, 24),
-      description: text.slice(0, 72),
+      description: (examples[text] || text).slice(0, 72),
     })) }],
   });
 }
@@ -276,7 +321,8 @@ async function handleIncomingInMemory(message, from) {
 
 async function handleIncoming(message, from) {
   if (firestore.isConfigured()) await firestore.archiveIncoming(message, from);
-  if (process.env.BOT_ENABLED !== 'true') {
+  const testRecipient = isAlwaysAutomatedTestNumber(from);
+  if (process.env.BOT_ENABLED !== 'true' && !testRecipient) {
     if (!firestore.isConfigured()) throw new Error('Cannot archive incoming enquiry while automation is disabled');
     return { ignored: true, reason: 'automation-disabled-archived' };
   }
@@ -322,7 +368,7 @@ async function handleIncoming(message, from) {
       // Enforce the existing-contact policy before any trigger paths, including
       // human handover, which otherwise could send an acknowledgement to an
       // old contact that is not explicitly enrolled for automation.
-      if (previouslyStored && !hasFirstContactEnrollment(record || leads.snapshot(from)[0])) {
+      if (previouslyStored && !testRecipient && !hasFirstContactEnrollment(record || leads.snapshot(from)[0])) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
@@ -341,6 +387,13 @@ async function handleIncoming(message, from) {
       }
       const body = message.type === 'text' ? (message.text?.body || '').trim() : '';
       const option = interactiveReplyId(message);
+      const optedOutAlready = Boolean(
+        knownLead?.optedOut || knownLead?.crm?.optedOut || record?.lead?.optedOut || record?.crm?.optedOut
+      );
+      if (optedOutAlready) {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'opted-out' };
+      }
       const isNewServiceSelection = message.type === 'interactive' && SERVICE_IDS[option] && option !== 'service_team';
       // Human / call request detection runs before every other check — even for
       // completed or previously-stored contacts — so it can never be masked.
@@ -374,13 +427,13 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'opted-out' };
       }
-      if (knownLead?.status === 'Qualified') {
+      if (!testRecipient && knownLead?.status === 'Qualified') {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'qualified-lead' };
       }
       // Completed conversations stay locked. Only an explicit new-service tap
       // may start a controlled new enquiry; everything else is silent.
-      if (knownLead?.conversationStatus === 'COMPLETED' || knownLead?.completionMessageSent === true) {
+      if (!testRecipient && (knownLead?.conversationStatus === 'COMPLETED' || knownLead?.completionMessageSent === true)) {
         if (!isNewServiceSelection) {
           // Notify salesperson for genuinely important post-completion requests,
           // but never send an automated customer reply.
@@ -394,7 +447,7 @@ async function handleIncoming(message, from) {
         }
         leadResetForNewEnquiry(from);
       }
-      if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
+      if (previouslyStored && !testRecipient && !eligibility(record || leads.snapshot(from)[0]).allowed) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }

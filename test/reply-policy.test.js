@@ -59,6 +59,14 @@ test('only newly enrolled contacts and their active flows receive automation', a
     const qualifiedResult = await handleIncoming({ id: 'qualified-1', type: 'text', text: { body: 'hi' } }, newPhone);
     assert.ok(['qualified-lead', 'existing-contact-not-enrolled'].includes(qualifiedResult.reason));
     assert.equal(sent.length, beforeQualifiedMessage, 'qualified contacts must never receive bot replies');
+
+    const testPhone = '+91 98925 06314';
+    leads.updateLead(testPhone, { status: 'Qualified', humanRequested: true });
+    process.env.BOT_ENABLED = 'false';
+    const beforeTestPhone = sent.length;
+    await handleIncoming({ id: 'test-recipient-1', type: 'text', text: { body: 'hi' } }, testPhone);
+    assert.ok(sent.length > beforeTestPhone, 'the designated test recipient bypasses old-contact and global automation gates');
+    process.env.BOT_ENABLED = 'true';
   } finally {
     Module._load = originalLoad;
   }

@@ -14,8 +14,11 @@ const SERVICE_FLOWS = {
     service: 'Social Media Management',
     intro: 'Great choice! 🚀\n\nAt Famebros Studio, we provide complete Social Media Management, including content planning, professional shoots, reels, creatives, captions and account management.\n\nTo understand your business better, please select:',
     steps: {
-      identity: { question: 'Choose the option that best describes you:', options: ['I own a business', "I'm a creator/influencer", "I'm starting a new business"], field: 'customerType', next: 'instagram' },
-      instagram: { question: 'Perfect! 😊\n\nPlease share your Instagram Page Link.', field: 'instagram', doneReply: 'Thank you! 😊\n\nWe\'ve received your business details and requirements.\n\nOur team will review everything and connect with you to discuss a suitable social media strategy and package.\n\n*Famebros Studio* 🚀' },
+      identity: { question: 'First, which best describes you?', options: ['I own a business', "I'm a creator/influencer", "I'm starting a new business"], field: 'customerType', next: 'clientName' },
+      clientName: { question: 'What is your name? (Example: Priya Sharma)', field: 'clientName', next: 'businessName' },
+      businessName: { question: 'What is your business or brand name? (Example: Priya’s Kitchen)', field: 'businessName', next: 'category' },
+      category: { question: 'Which category best describes your business?', options: ['Food & Beverage', 'Fashion & Beauty', 'Health & Fitness', 'Home & Real Estate', 'Retail & E-commerce', 'Education', 'Professional Services', 'Other'], field: 'category', next: 'instagram' },
+      instagram: { question: 'Please share your Instagram profile link. Example: https://www.instagram.com/yourbrand/ (Please send the full link, not just a username.)', field: 'instagram', doneReply: 'Thank you! 😊\n\nWe\'ve received your business details and requirements.\n\nOur team will review everything and connect with you to discuss a suitable social media strategy and package.\n\n*Famebros Studio* 🚀' },
     },
   },
   ads: {
@@ -84,6 +87,25 @@ function getOptionId(step, option) {
   return `flow_${step}_${String(option).toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
 }
 
+function normalizeInstagramProfileUrl(value) {
+  const input = (value || '').trim();
+  if (!input || input.length > 500) return null;
+  let url;
+  try {
+    url = new URL(/^https?:\/\//i.test(input) ? input : `https://${input}`);
+  } catch (_) {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) return null;
+  if (!['instagram.com', 'www.instagram.com'].includes(url.hostname.toLowerCase())) return null;
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (parts.length !== 1) return null;
+  const username = parts[0];
+  const reserved = new Set(['accounts', 'about', 'developer', 'direct', 'explore', 'legal', 'p', 'reel', 'reels', 'stories', 'web']);
+  if (!/^[a-zA-Z0-9._]{1,30}$/.test(username) || reserved.has(username.toLowerCase())) return null;
+  return `https://www.instagram.com/${username}/`;
+}
+
 function hasActiveFlow(phone) {
   return activeFlows.has(phone);
 }
@@ -121,12 +143,26 @@ function processFlowResponse(phone, text) {
 
   const flowDefinition = flow.service ? SERVICE_FLOWS[flow.service] : null;
   const stepConfig = flowDefinition ? flowDefinition.steps[flow.step] : FLOW_STEPS[flow.step];
+  if (!stepConfig) return null;
   const selectedIndex = /^flow_[a-z0-9]+_(\d+)$/i.exec(normalized);
-  const answer = selectedIndex && stepConfig.options
+  let answer = selectedIndex && stepConfig.options
     ? stepConfig.options[Number(selectedIndex[1])]
     : stepConfig.options && /^\d+$/.test(normalized)
       ? stepConfig.options[Number(normalized) - 1]
       : normalized;
+
+  if (flowDefinition && stepConfig.field === 'instagram' && answer.toLowerCase() !== 'none') {
+    answer = normalizeInstagramProfileUrl(answer);
+    if (!answer) {
+      return {
+        reply: 'That does not look like a valid Instagram profile link. Please send the full profile URL, for example: https://www.instagram.com/yourbrand/',
+        options: null,
+        step: flow.step,
+        done: false,
+        invalid: true,
+      };
+    }
+  }
 
   if (stepConfig.options && !stepConfig.options.includes(answer)) {
     return { reply: stepConfig.question, options: stepConfig.options, step: flow.step, done: false };
@@ -134,6 +170,16 @@ function processFlowResponse(phone, text) {
   flow.history = flow.history || [];
   flow.history.push(flow.step);
   flow.data[stepConfig.field] = answer;
+
+  if (flowDefinition) {
+    const lead = leads.getLead(phone);
+    const updates = { serviceDetails: { ...(lead.serviceDetails || {}), ...flow.data } };
+    if (stepConfig.field === 'clientName' || stepConfig.field === 'name') updates.name = answer;
+    if (stepConfig.field === 'businessName' || stepConfig.field === 'business') updates.business = answer;
+    if (stepConfig.field === 'category') updates.category = answer;
+    if (stepConfig.field === 'instagram') updates.instagram = answer;
+    leads.updateLead(phone, updates);
+  }
 
   if (flowDefinition) {
     if (stepConfig.next) {
@@ -148,10 +194,11 @@ function processFlowResponse(phone, text) {
       service: flowDefinition.service,
       humanRequested: flow.service === 'team',
       business: data.businessName || data.business || lead.business,
-      name: data.name || lead.name,
+      name: data.clientName || data.name || lead.name,
       budget: data.budget || lead.budget,
       timeline: data.timeline || lead.timeline,
       instagram: data.instagram || lead.instagram,
+      category: data.category || lead.category,
       location: data.location || lead.location,
       product: data.product || lead.product,
       goal: data.goal || lead.goal,
@@ -205,4 +252,4 @@ function snapshotFlow(phone) {
   return state ? { step: state.step, data: { ...state.data }, service: state.service, history: [...(state.history || [])] } : null;
 }
 
-module.exports = { startFlow, startServiceFlow, hasActiveFlow, getCurrentStep, getOptionId, processFlowResponse, cancelFlow, restoreFlow, snapshotFlow, FLOW_STEPS, SERVICE_FLOWS };
+module.exports = { startFlow, startServiceFlow, hasActiveFlow, getCurrentStep, getOptionId, processFlowResponse, cancelFlow, restoreFlow, snapshotFlow, normalizeInstagramProfileUrl, FLOW_STEPS, SERVICE_FLOWS };
