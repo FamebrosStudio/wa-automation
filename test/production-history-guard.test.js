@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
 
-test('production sends nothing when durable contact history is unavailable, including to test numbers', async () => {
+test('production fails closed without durable history except for the designated test recipient', async () => {
   const previousVercel = process.env.VERCEL;
   const previousBotEnabled = process.env.BOT_ENABLED;
   process.env.VERCEL = '1';
@@ -30,11 +30,12 @@ test('production sends nothing when durable contact history is unavailable, incl
   delete require.cache[handlerPath];
   try {
     const { handleIncoming } = require('../src/handlers/messageHandler');
-    for (const [id, phone] of [['normal', '919900009991'], ['test', '919892506314']]) {
-      const result = await handleIncoming({ id, type: 'text', text: { body: 'hi' } }, phone);
-      assert.equal(result.reason, 'contact-history-unavailable');
-    }
-    assert.equal(sent.length, 0);
+    const normal = await handleIncoming({ id: 'normal', type: 'text', text: { body: 'hi' } }, '919900009991');
+    assert.equal(normal.reason, 'contact-history-unavailable');
+    assert.equal(sent.length, 0, 'ordinary contacts receive no automation without durable history');
+    const testRecipient = await handleIncoming({ id: 'test', type: 'text', text: { body: 'hi' } }, '919892506314');
+    assert.ok(!testRecipient?.reason, 'the designated test number can test replies without durable history');
+    assert.ok(sent.length > 0);
   } finally {
     Module._load = originalLoad;
     delete require.cache[handlerPath];

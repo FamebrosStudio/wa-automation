@@ -262,8 +262,11 @@
     .btn-outline{background:#101411;border-color:#303a34;color:#d7dfd9}.btn-outline:hover{background:#1b211d}
     .btn-danger{background:#301c1c;border-color:#512c2c;color:#f09a95}.btn-danger:hover{background:#422020}
     .btn-sm{height:30px;padding:0 10px;font-size:11px}
-    .pipeline-summary{display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:10px;margin-top:18px;max-width:700px}
-    .summary-badge{min-height:60px;justify-content:flex-start;border-radius:11px;background:#121614;padding:10px 13px;color:#e4ebe6;font-size:13px;font-weight:600;box-shadow:0 1px 2px #0003}
+     .pipeline-summary{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:10px;margin-top:18px;max-width:900px}
+     .summary-badge{min-height:60px;justify-content:flex-start;border-radius:11px;background:#121614;padding:10px 13px;color:#e4ebe6;font-size:13px;font-weight:600;box-shadow:0 1px 2px #0003;text-align:left;cursor:pointer}
+     .summary-badge{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-items:center;justify-content:start;column-gap:7px;row-gap:3px}.summary-badge:hover,.summary-badge[aria-pressed="true"]{border-color:#42634e;background:#17211a}.summary-badge strong{font-size:13px}.summary-badge .stat-label{grid-column:1/-1;font-size:10px;color:#98a59d;font-weight:500}.summary-badge .dot{grid-row:2}
+     .filter-toolbar{display:flex;align-items:end;gap:9px;padding:12px 32px;border-bottom:1px solid #202723;background:#0c100d;flex-wrap:wrap}
+     .filter-control{display:grid;gap:4px;min-width:130px}.filter-control label{font-size:10px;color:#98a59d;font-weight:600}.filter-control select,.filter-control input{height:34px;min-width:0;border:1px solid #303a34;border-radius:8px;background:#101411;color:#e4ebe6;padding:0 9px;font:inherit;font-size:12px}.filter-search{flex:1;min-width:220px}.filter-count{margin:0 0 8px;color:#98a59d;font-size:11px}
     .summary-badge .dot{width:8px;height:8px;flex:0 0 8px}
     .status-exports{margin-top:12px}.status-exports-label{font-size:11px;color:#98a59d}
     .mobile-tabs{background:#0d100e}.tabs-list{background:#171c19}.tab{color:#98a59d}.tab[data-active=true]{background:#272f2a;color:#f1f5f2;box-shadow:0 1px 3px #0005}
@@ -298,7 +301,8 @@
     @media(max-width:1050px){.sticky-header{padding-left:22px;padding-right:22px}.board-wrap{padding-left:22px;padding-right:22px}}
     @media(max-width:760px){
       .app{grid-template-columns:1fr}.sticky-header{padding:16px 16px 14px}.page-head{align-items:flex-start;flex-direction:column}.head-actions{width:100%;flex-wrap:wrap}
-      .pipeline-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:14px}.summary-badge{min-height:52px;padding:8px;font-size:10px;gap:5px}
+       .pipeline-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:14px}.summary-badge{min-height:52px;padding:8px;font-size:10px;gap:5px}.pipeline-summary .summary-badge:last-child{grid-column:span 2}
+       .filter-toolbar{padding:10px 14px;gap:7px}.filter-control{flex:1 1 calc(50% - 7px);min-width:0}.filter-search{flex-basis:100%}.filter-count{margin:0 0 8px}
       .status-exports{gap:5px}.status-exports-label{width:100%}.board-wrap{padding:12px 14px 24px}.lane{background:#101411}
       .mobile-tabs{padding:8px 14px}.lane-description{font-size:10px}h1{font-size:22px}
       .sidebar.open .sidebar-close{display:inline-flex}
@@ -332,10 +336,12 @@
             <p class="page-eyebrow">Sales workspace</p>
             <h1>Lead pipeline</h1>
             <p class="intro">Review each enquiry, follow up, and keep your team’s next steps clear.</p>
-            <div class="pipeline-summary" aria-live="polite">
-              <span class="summary-badge"><span class="dot dot-qualified"></span><span id="qualifiedSummary">0 qualified</span></span>
-              <span class="summary-badge"><span class="dot dot-pending"></span><span id="pendingSummary">0 non-confirmed</span></span>
-              <span class="summary-badge"><span class="dot dot-rejected"></span><span id="rejectedSummary">0 non-qualified</span></span>
+            <div class="pipeline-summary" aria-label="Lead statistics">
+              <button class="summary-badge" type="button" data-stat-filter="all"><span class="stat-label">All leads</span><strong id="totalSummary">0</strong></button>
+              <button class="summary-badge" type="button" data-stat-filter="new"><span class="stat-label">Needs a status</span><strong id="newSummary">0</strong></button>
+              <button class="summary-badge" type="button" data-stat-filter="Qualified"><span class="dot dot-qualified"></span><strong id="qualifiedSummary">0 qualified</strong></button>
+              <button class="summary-badge" type="button" data-stat-filter="Non-confirmed"><span class="dot dot-pending"></span><strong id="pendingSummary">0 non-confirmed</strong></button>
+              <button class="summary-badge" type="button" data-stat-filter="Non-qualified"><span class="dot dot-rejected"></span><strong id="rejectedSummary">0 non-qualified</strong></button>
             </div>
             <nav class="status-exports" aria-label="Export leads by status">
               <span class="status-exports-label">Download leads by status:</span>
@@ -352,6 +358,16 @@
           </div>
         </header>
       </div>
+
+      <section class="filter-toolbar" aria-label="Lead filters">
+        <div class="filter-control filter-search"><label for="pipelineSearch">Search all leads</label><input id="pipelineSearch" type="search" placeholder="Name, service, owner, source…"></div>
+        <div class="filter-control"><label for="serviceFilter">Service</label><select id="serviceFilter"><option value="">All services</option></select></div>
+        <div class="filter-control"><label for="ownerFilter">Assigned to</label><select id="ownerFilter"><option value="">Anyone</option></select></div>
+        <div class="filter-control"><label for="sourceFilter">Lead source</label><select id="sourceFilter"><option value="">All sources</option></select></div>
+        <div class="filter-control"><label for="dateFilter">Received</label><select id="dateFilter"><option value="">Any time</option><option value="today">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></div>
+        <button id="clearFilters" class="btn btn-ghost btn-sm" type="button">Clear filters</button>
+        <span id="filterCount" class="filter-count" aria-live="polite"></span>
+      </section>
 
       <!-- Mobile Tabs -->
       <div class="mobile-tabs">
@@ -405,10 +421,12 @@
     let loadPromise = null;
     let clearInProgress = false;
     let activeTab = 'Qualified';
+    let statFilter = 'all';
     let toastTimer;
     const peopleEl = document.getElementById('people');
     const boardEl = document.getElementById('board');
     const searchEl = document.getElementById('search');
+    const pipelineSearchEl = document.getElementById('pipelineSearch');
     const dialog = document.getElementById('leadDialog');
     const dialogBody = document.getElementById('dialogBody');
     const sidebarEl = document.getElementById('sidebar');
@@ -453,6 +471,7 @@
           const data = await response.json();
           if (clearInProgress) return;
           leads = data.leads || [];
+          populateFilterOptions();
           renderSummary();
           renderPeople();
           renderBoard();
@@ -503,9 +522,12 @@
       const nc = leads.filter(l => l.status === 'Non-confirmed').length;
       const nq = leads.filter(l => l.status === 'Non-qualified').length;
       const newCount = leads.filter(l => !STATUSES.some(s => s.name === l.status)).length;
+      document.getElementById('totalSummary').textContent = String(leads.length);
+      document.getElementById('newSummary').textContent = String(newCount);
       document.getElementById('qualifiedSummary').textContent = `${q} qualified`;
       document.getElementById('pendingSummary').textContent = `${nc} non-confirmed`;
       document.getElementById('rejectedSummary').textContent = `${nq} non-qualified`;
+      document.querySelectorAll('[data-stat-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.statFilter === statFilter)));
       document.getElementById('peopleCount').textContent = String(newCount);
       document.getElementById('mobileNewCount').textContent = newCount;
       const mb = document.getElementById('mobileNewBtn');
@@ -525,16 +547,44 @@
 
     function displayName(lead) { return lead.name || lead.business || 'New enquiry'; }
 
+    function populateFilterOptions() {
+      const sets = [
+        ['serviceFilter', leads.map(l => l.service)],
+        ['ownerFilter', leads.map(l => l.owner || l.assignedTeam)],
+        ['sourceFilter', leads.map(l => l.leadSource || l.source)],
+      ];
+      for (const [id, values] of sets) {
+        const select = document.getElementById(id); const selected = select.value;
+        const first = select.options[0]; select.replaceChildren(first);
+        [...new Set(values.filter(Boolean).map(String))].sort((a,b) => a.localeCompare(b)).forEach(value => {
+          const option = document.createElement('option'); option.value = value; option.textContent = value; select.append(option);
+        });
+        select.value = [...select.options].some(option => option.value === selected) ? selected : '';
+      }
+    }
+
     function visibleLeads() {
-      const term = searchEl.value.trim().toLowerCase();
-      if (!term) return leads;
-      return leads.filter(l => [l.name,l.business,l.service,l.owner,l.status].concat(l.tags||[]).join(' ').toLowerCase().includes(term));
+      const term = (pipelineSearchEl.value || searchEl.value).trim().toLowerCase();
+      const service = document.getElementById('serviceFilter').value;
+      const owner = document.getElementById('ownerFilter').value;
+      const source = document.getElementById('sourceFilter').value;
+      const dateRange = document.getElementById('dateFilter').value;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const filtered = leads.filter(lead => {
+        const date = new Date(lead.firstSeen || lead.createdAt || lead.lastSeen || 0);
+        const matchesTerm = !term || [lead.name,lead.business,lead.service,lead.owner,lead.assignedTeam,lead.status,lead.leadSource,lead.source,lead.phone].concat(lead.tags||[]).join(' ').toLowerCase().includes(term);
+        const matchesDate = !dateRange || (Number.isFinite(date.getTime()) && date.getTime() >= (dateRange === 'today' ? today.getTime() : Date.now() - Number(dateRange) * 86400000));
+        return matchesTerm && (!service || lead.service === service) && (!owner || (lead.owner || lead.assignedTeam) === owner) && (!source || (lead.leadSource || lead.source) === source) && matchesDate && (statFilter === 'all' || (statFilter === 'new' ? !STATUSES.some(s => s.name === lead.status) : lead.status === statFilter));
+      });
+      const active = Boolean(term || service || owner || source || dateRange || statFilter !== 'all');
+      document.getElementById('filterCount').textContent = active ? `${filtered.length} of ${leads.length} leads` : '';
+      return filtered;
     }
 
     function renderPeople() {
       const newEntries = leads.filter(l => !STATUSES.some(s => s.name === l.status));
-      const term = searchEl.value.trim().toLowerCase();
-      const filtered = term ? newEntries.filter(l => [l.name,l.business,l.service,l.owner].concat(l.tags||[]).join(' ').toLowerCase().includes(term)) : newEntries;
+      const visibleIds = new Set(visibleLeads().map(lead => lead.id));
+      const filtered = newEntries.filter(lead => visibleIds.has(lead.id));
       if (!filtered.length) {
         const empty = document.createElement('div');
         empty.className = 'empty';
@@ -783,6 +833,16 @@
     }
 
     searchEl.addEventListener('input',()=>{renderPeople();renderBoard();});
+    pipelineSearchEl.addEventListener('input',()=>{searchEl.value=pipelineSearchEl.value;renderPeople();renderBoard();});
+    searchEl.addEventListener('input',()=>{pipelineSearchEl.value=searchEl.value;renderPeople();renderBoard();});
+    ['serviceFilter','ownerFilter','sourceFilter','dateFilter'].forEach(id => document.getElementById(id).addEventListener('change',()=>{renderPeople();renderBoard();}));
+    document.getElementById('clearFilters').addEventListener('click',()=>{
+      searchEl.value='';pipelineSearchEl.value='';['serviceFilter','ownerFilter','sourceFilter','dateFilter'].forEach(id=>document.getElementById(id).value='');statFilter='all';renderSummary();renderPeople();renderBoard();
+    });
+    document.querySelector('.pipeline-summary').addEventListener('click',event=>{
+      const button=event.target.closest('[data-stat-filter]');if(!button)return;
+      statFilter=button.dataset.statFilter;renderSummary();renderPeople();renderBoard();
+    });
     document.getElementById('refresh').addEventListener('click',load);
     document.getElementById('clearTestData').addEventListener('click',clearTestRecords);
     document.getElementById('closeDialog').addEventListener('click',()=>dialog.close());
