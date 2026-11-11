@@ -16,6 +16,8 @@ test('CRM export is an authenticated Excel workbook with lead and conversation s
     serviceDetails: { customerType: 'I own a business', category: 'Food & Beverage' },
   });
   leads.addMessage(phone, 'user', 'Hi, I need social media help');
+  leads.updateLead('919876543211', { name: 'Qualified Lead', status: 'Qualified' });
+  leads.updateLead('919876543212', { name: 'Non-qualified Lead', status: 'Non-qualified' });
 
   const realLoad = Module._load;
   Module._load = function (request, parent, isMain) {
@@ -41,16 +43,34 @@ test('CRM export is an authenticated Excel workbook with lead and conversation s
     const response = await fetch(`${root}/leads/export`, { headers: { authorization: auth } });
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /spreadsheetml\.sheet/);
-    assert.match(response.headers.get('content-disposition'), /famebros-crm-\d{4}-\d{2}-\d{2}\.xlsx/);
+    assert.match(response.headers.get('content-disposition'), /famebros-crm-all-\d{4}-\d{2}-\d{2}\.xlsx/);
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(Buffer.from(await response.arrayBuffer()));
     assert.equal(workbook.worksheets.length, 2);
     const leadsSheet = workbook.getWorksheet('Leads');
+    assert.equal(leadsSheet.rowCount, 4, 'full CRM export includes all three statuses');
     assert.equal(leadsSheet.getCell('B2').value, 'Priya Sharma');
     assert.equal(leadsSheet.getCell('E2').value, 'Food & Beverage');
     assert.equal(leadsSheet.getCell('K2').value, 'https://www.instagram.com/priyakitchen/');
     assert.equal(workbook.getWorksheet('Conversation history').getCell('F2').value, 'Hi, I need social media help');
+
+    for (const [status, name] of [
+      ['Qualified', 'Qualified Lead'],
+      ['Non-confirmed', 'Priya Sharma'],
+      ['Non-qualified', 'Non-qualified Lead'],
+    ]) {
+      const filtered = await fetch(`${root}/leads/export?status=${encodeURIComponent(status)}`, { headers: { authorization: auth } });
+      assert.equal(filtered.status, 200);
+      assert.match(filtered.headers.get('content-disposition'), new RegExp(`famebros-crm-${status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-`));
+      const filteredBook = new ExcelJS.Workbook();
+      await filteredBook.xlsx.load(Buffer.from(await filtered.arrayBuffer()));
+      const filteredLeads = filteredBook.getWorksheet('Leads');
+      assert.equal(filteredLeads.rowCount, 2, `${status} export should contain only its header and one lead`);
+      assert.equal(filteredLeads.getCell('B2').value, name);
+    }
+    const invalidStatus = await fetch(`${root}/leads/export?status=Unknown`, { headers: { authorization: auth } });
+    assert.equal(invalidStatus.status, 400);
   } finally {
     if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     Module._load = realLoad;

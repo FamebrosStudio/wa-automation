@@ -82,8 +82,15 @@ function safeRecordId(id) {
 
 app.get('/leads/export', dashboardAuth, async (req, res) => {
   try {
+    const requestedStatus = req.query.status;
+    if (requestedStatus !== undefined && !LEAD_STATUSES.includes(requestedStatus)) {
+      return res.status(400).json({ error: 'Invalid export status' });
+    }
     const stored = await firestore.loadAll();
-    const records = stored || leads.snapshot();
+    const allRecords = stored || leads.snapshot();
+    const records = requestedStatus
+      ? allRecords.filter((record) => (record.lead || record).status === requestedStatus)
+      : allRecords;
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Famebros Studio';
     workbook.created = new Date();
@@ -160,8 +167,9 @@ app.get('/leads/export', dashboardAuth, async (req, res) => {
 
     const buffer = await workbook.xlsx.writeBuffer();
     const date = new Date().toISOString().slice(0, 10);
+    const statusSlug = requestedStatus ? requestedStatus.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'all';
     res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.set('Content-Disposition', `attachment; filename="famebros-crm-${date}.xlsx"`);
+    res.set('Content-Disposition', `attachment; filename="famebros-crm-${statusSlug}-${date}.xlsx"`);
     return res.status(200).send(Buffer.from(buffer));
   } catch (error) {
     console.error('[export] CRM export failed:', error.message);
