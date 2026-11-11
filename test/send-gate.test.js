@@ -31,6 +31,8 @@ test('send boundary checks fresh CRM permissions for every message and global OF
     process.env.BOT_ENABLED = 'false';
     await whatsapp.text('+91 98925 06314', 'test-only message');
     assert.equal(calls, 2, 'the configured test number bypasses CRM and global automation gates');
+    await assert.rejects(whatsapp.forceText('+91 98923 28946', 'blocked'), /suppressed-number/);
+    assert.equal(calls, 2, 'the explicit block also protects the force-send path');
   } finally {
     Module._load = originalLoad;
     if (originalEnabled === undefined) delete process.env.BOT_ENABLED;

@@ -75,6 +75,16 @@ test('only newly enrolled contacts and their active flows receive automation', a
     await handleIncoming({ id: 'test-recipient-1', type: 'text', text: { body: 'hi' } }, testPhone);
     assert.ok(sent.length > beforeTestPhone, 'the designated test recipient bypasses old-contact and global automation gates');
     process.env.BOT_ENABLED = 'true';
+
+    const beforeBlocked = sent.length;
+    const blocked = await handleIncoming({ id: 'blocked-number', type: 'text', text: { body: 'hello' } }, '+91 98923 28946');
+    assert.equal(blocked.reason, 'suppressed-number');
+    const stale = await handleIncoming({
+      id: 'stale-message', type: 'text', timestamp: String(Math.floor(Date.now() / 1000) - 25 * 60 * 60),
+      text: { body: 'hello' },
+    }, '919900007654');
+    assert.equal(stale.reason, 'stale-inbound-message');
+    assert.equal(sent.length, beforeBlocked, 'blocked contacts and stale webhooks must never trigger sends');
   } finally {
     Module._load = originalLoad;
   }

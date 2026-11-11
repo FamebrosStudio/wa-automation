@@ -2,13 +2,16 @@ const BLOCKED_TYPES = new Set(['Existing Client', 'Past Client', 'Employee', 'Ve
 function normalizePhone(phone) { return String(phone || '').replace(/\D/g, ''); }
 const TEST_NUMBERS = new Set(['919833066222', ...(process.env.AUTOMATION_TEST_NUMBERS || '').split(',')].map(normalizePhone).filter(Boolean));
 const ALWAYS_AUTOMATED_TEST_NUMBERS = new Set(['919892506314']);
+const SUPPRESSED_NUMBERS = new Set(['919892328946', ...(process.env.AUTOMATION_BLOCKED_NUMBERS || '').split(',')].map(normalizePhone).filter(Boolean));
 function isTestNumber(phone) { return TEST_NUMBERS.has(normalizePhone(phone)); }
 function isAlwaysAutomatedTestNumber(phone) { return ALWAYS_AUTOMATED_TEST_NUMBERS.has(normalizePhone(phone)); }
+function isSuppressedNumber(phone) { return SUPPRESSED_NUMBERS.has(normalizePhone(phone)); }
 function hasFirstContactEnrollment(record) {
   const timestamp = record?.lead?.automationEnrolledAt;
   return typeof timestamp === 'string' && Number.isFinite(Date.parse(timestamp));
 }
 function eligibility(record) {
+  if (isSuppressedNumber(record?.phone || record?.lead?.phone)) return { allowed: false, reason: 'suppressed-number' };
   const lead = record?.lead;
   const crm = record?.crm || {};
   if (!lead) return { allowed: false, reason: 'unverified-contact' };
@@ -31,4 +34,4 @@ function eligibility(record) {
   if (lead.automationEligible !== true) return { allowed: false, reason: 'existing-contact-review' };
   return { allowed: true };
 }
-module.exports = { eligibility, hasFirstContactEnrollment, isTestNumber, isAlwaysAutomatedTestNumber, normalizePhone, BLOCKED_TYPES, TEST_NUMBERS };
+module.exports = { eligibility, hasFirstContactEnrollment, isTestNumber, isAlwaysAutomatedTestNumber, isSuppressedNumber, normalizePhone, BLOCKED_TYPES, TEST_NUMBERS, SUPPRESSED_NUMBERS };

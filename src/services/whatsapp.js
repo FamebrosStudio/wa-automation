@@ -1,10 +1,11 @@
 const axios = require('axios');
 const config = require('../config');
-const { eligibility, isAlwaysAutomatedTestNumber } = require('./eligibility');
+const { eligibility, isAlwaysAutomatedTestNumber, isSuppressedNumber } = require('./eligibility');
 
 const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 
 async function send(payload, options = {}) {
+  if (isSuppressedNumber(payload.to)) throw new Error('Automated send suppressed: suppressed-number');
   const testRecipient = isAlwaysAutomatedTestNumber(payload.to);
   if (process.env.BOT_ENABLED !== 'true' && !options.force && !testRecipient) throw new Error('Sales automation is disabled');
   if (testRecipient && !options.force) {

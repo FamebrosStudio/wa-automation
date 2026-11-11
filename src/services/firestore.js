@@ -205,4 +205,19 @@ async function archiveIncoming(message, phone) {
   }
 }
 
-module.exports = { isConfigured, database, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, archiveIncoming, acquirePhoneLease, hasProcessedMessage, markMessageProcessed };
+// Inbox-only contacts can predate lead creation. Since the current webhook is
+// archived before policy checks, ignore its own document and detect earlier
+// inbound history for the same phone.
+async function hasPriorInboxMessage(phone, messageId) {
+  if (!messageId) return false;
+  const db = await database();
+  if (!db) return false;
+  const snapshot = await db.collection('waAutomationInbox')
+    .where('phone', '==', phone)
+    .limit(2)
+    .get();
+  const currentId = recordId(messageId);
+  return snapshot.docs.some((doc) => doc.id !== currentId);
+}
+
+module.exports = { isConfigured, database, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, archiveIncoming, hasPriorInboxMessage, acquirePhoneLease, hasProcessedMessage, markMessageProcessed };

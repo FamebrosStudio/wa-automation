@@ -3,7 +3,7 @@ const K = require('../data/knowledge');
 const leads = require('../services/leads');
 const flow = require('../services/flow');
 const firestore = require('../services/firestore');
-const { eligibility, hasFirstContactEnrollment, isAlwaysAutomatedTestNumber } = require('../services/eligibility');
+const { eligibility, hasFirstContactEnrollment, isAlwaysAutomatedTestNumber, isSuppressedNumber } = require('../services/eligibility');
 
 const processed = new Set();
 const sessions = new Map();
@@ -322,6 +322,12 @@ async function handleIncomingInMemory(message, from) {
 async function handleIncoming(message, from) {
   if (firestore.isConfigured()) await firestore.archiveIncoming(message, from);
   const testRecipient = isAlwaysAutomatedTestNumber(from);
+  if (isSuppressedNumber(from)) return { ignored: true, reason: 'suppressed-number' };
+  const messageTimestamp = Number(message.timestamp);
+  const messageAgeMs = Date.now() - messageTimestamp * 1000;
+  if (!testRecipient && Number.isFinite(messageTimestamp) && messageTimestamp > 0 && messageAgeMs > 24 * 60 * 60 * 1000) {
+    return { ignored: true, reason: 'stale-inbound-message' };
+  }
   if (process.env.BOT_ENABLED !== 'true' && !testRecipient) {
     if (!firestore.isConfigured()) throw new Error('Cannot archive incoming enquiry while automation is disabled');
     return { ignored: true, reason: 'automation-disabled-archived' };
@@ -347,18 +353,21 @@ async function handleIncoming(message, from) {
       // safely distinguish a first-time sender from an existing contact.
       if (storageUnavailable) return { ignored: true, reason: 'contact-history-unavailable' };
       let record = null;
+      let priorInboxMessage = false;
       if (firestoreEnabled) {
         // These independent point reads share a network round trip instead of
         // adding duplicate-check latency ahead of every WhatsApp reply.
-        const [alreadyProcessed, storedRecord] = await Promise.all([
+        const [alreadyProcessed, storedRecord, hasPriorInboxMessage] = await Promise.all([
           message.id ? firestore.hasProcessedMessage(message.id) : false,
           firestore.getLeadByPhone(from),
+          !testRecipient && message.id ? firestore.hasPriorInboxMessage(from, message.id) : false,
         ]);
         if (alreadyProcessed) return;
         record = storedRecord;
+        priorInboxMessage = hasPriorInboxMessage;
       }
       if (releaseLease) await releaseLease.assertOwnership();
-      const previouslyStored = Boolean(record || leads.snapshot(from).length);
+      const previouslyStored = Boolean(record || leads.snapshot(from).length || priorInboxMessage);
       if (record) {
         leads.restoreOne(record);
         leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
