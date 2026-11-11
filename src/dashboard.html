@@ -59,7 +59,7 @@
     .search:focus{border-color:var(--ring);box-shadow:0 0 0 3px rgba(16,185,129,.15)}
 
     /* Scroll area */
-    .people{flex:1;min-width:0;overflow:auto hidden;margin:8px -4px 0;padding:0 4px;display:flex;flex-direction:column;gap:4px}
+    .people{flex:1 1 0;min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;margin:8px -4px 0;padding:0 4px;display:flex;flex-direction:column;gap:4px}
     .person{width:100%;min-width:0;min-height:56px;display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;gap:9px;padding:8px;border-radius:8px;border:1px solid transparent;background:transparent;cursor:pointer;text-align:left;transition:all .15s;overflow:hidden}
     .person:hover{background:var(--muted)}
     .person.is-selected{background:var(--muted);border-color:var(--border)}
