@@ -4,7 +4,7 @@ const Module = require('node:module');
 
 test('send boundary checks fresh CRM permissions for every message and global OFF', async () => {
   let calls = 0;
-  let record = { lead: { automationEligible: true }, crm: {} };
+  let record = { lead: { automationEligible: true, automationEnrolledAt: new Date().toISOString() }, crm: {} };
   const originalLoad = Module._load;
   const originalEnabled = process.env.BOT_ENABLED;
   Module._load = function (request, parent, main) {

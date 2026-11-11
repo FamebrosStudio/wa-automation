@@ -25,6 +25,7 @@ test('only newly enrolled contacts and their active flows receive automation', a
     const flow = require('../src/services/flow');
     const oldPhone = '919900001111';
     leads.getLead(oldPhone); // Represents a lead already stored before rollout.
+    leads.updateLead(oldPhone, { automationEligible: true }); // stale legacy flag must not enroll it
     flow.startServiceFlow(oldPhone, 'website');
     const beforeOld = sent.length;
     const oldResult = await handleIncoming({ id: 'old-1', type: 'text', text: { body: 'bot: hi' } }, oldPhone);
@@ -37,7 +38,7 @@ test('only newly enrolled contacts and their active flows receive automation', a
     const beforeOldOption = sent.length;
     await handleIncoming({ id: 'old-option', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_website' } } }, oldPhone);
     assert.equal(sent.length, beforeOldOption, 'menu selections must not bypass old-contact exclusions');
-    assert.notEqual(leads.getLead(oldPhone).automationEligible, true);
+    assert.equal(leads.getLead(oldPhone).automationEnrolledAt, undefined, 'old contacts never receive the first-contact enrollment marker');
     const beforeOldFlowReply = sent.length;
     await handleIncoming({ id: 'old-flow-reply', type: 'text', text: { body: 'Business Website' } }, oldPhone);
     assert.equal(sent.length, beforeOldFlowReply, 'old unfinished flows stay silent');

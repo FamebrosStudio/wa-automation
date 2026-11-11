@@ -3,7 +3,7 @@ const K = require('../data/knowledge');
 const leads = require('../services/leads');
 const flow = require('../services/flow');
 const firestore = require('../services/firestore');
-const { eligibility, TEST_NUMBERS } = require('../services/eligibility');
+const { eligibility, hasFirstContactEnrollment } = require('../services/eligibility');
 
 const processed = new Set();
 const sessions = new Map();
@@ -322,9 +322,22 @@ async function handleIncoming(message, from) {
       // Enforce the existing-contact policy before any trigger paths, including
       // human handover, which otherwise could send an acknowledgement to an
       // old contact that is not explicitly enrolled for automation.
-      if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
+      if (previouslyStored && !hasFirstContactEnrollment(record || leads.snapshot(from)[0])) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
+      }
+      if (!previouslyStored) {
+        // Enrollment is only created when no prior lead record exists. This
+        // timestamp is required at every outbound send boundary, so legacy
+        // contacts cannot become eligible merely from stale flags or a menu tap.
+        leads.updateLead(from, {
+          automationEligible: true,
+          automationEnrolledAt: new Date().toISOString(),
+          contactType: 'New Lead',
+          leadSource: message.referral ? 'Meta referral' : 'WhatsApp',
+          referral: message.referral || null,
+        });
+        if (firestoreEnabled) await firestore.saveLead(leads.snapshot(from)[0]);
       }
       const body = message.type === 'text' ? (message.text?.body || '').trim() : '';
       const option = interactiveReplyId(message);
@@ -381,10 +394,7 @@ async function handleIncoming(message, from) {
         }
         leadResetForNewEnquiry(from);
       }
-      if (!previouslyStored) {
-        leads.updateLead(from, { automationEligible: true, contactType: 'New Lead', leadSource: message.referral ? 'Meta referral' : 'WhatsApp', referral: message.referral || null });
-        if (firestoreEnabled) await firestore.saveLead(leads.snapshot(from)[0]);
-      } else if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
+      if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
