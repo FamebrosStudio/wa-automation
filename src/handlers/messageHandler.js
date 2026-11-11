@@ -117,7 +117,7 @@ async function handleFlowText(from, text) {
 async function sendFlowChoices(to, step, options) {
   const shortLabels = {
     "I'm a creator/influencer": 'Creator / influencer',
-    "I'm starting a new business": 'Starting a new business',
+    "I'm starting a new business": 'Starting a business',
     'WhatsApp Enquiries': 'WhatsApp enquiries',
     'Lead Form Enquiries': 'Lead form enquiries',
     'Brand Awareness': 'Brand awareness',

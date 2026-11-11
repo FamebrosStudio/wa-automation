@@ -58,9 +58,10 @@ test('only newly enrolled contacts and their active flows receive automation', a
     await handleIncoming({ id: 'social-hello', type: 'text', text: { body: 'hi' } }, socialPhone);
     await handleIncoming({ id: 'social-select', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_social' } } }, socialPhone);
     const businessOptionMenu = sent.filter((item) => item.type === 'list').at(-1).body;
-    assert.equal(businessOptionMenu.sections[0].rows.length, 1);
-    assert.equal(businessOptionMenu.sections[0].rows[0].title, 'I own a business');
-    assert.equal(businessOptionMenu.sections[0].rows[0].description, undefined);
+    assert.deepEqual(businessOptionMenu.sections[0].rows.map((row) => row.title), [
+      '1 I own a business', '2 Creator / influencer', '3 Starting a business',
+    ]);
+    assert.ok(businessOptionMenu.sections[0].rows.every((row) => row.description === undefined));
 
     const websitePhone = '919900001236';
     await handleIncoming({ id: 'website-hello', type: 'text', text: { body: 'hi' } }, websitePhone);

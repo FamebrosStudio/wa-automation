@@ -59,7 +59,7 @@ test('social media service asks one detail at a time, validates Instagram URLs, 
   const phone = `service-social-${Date.now()}`;
   const first = flow.startServiceFlow(phone, 'social');
   assert.match(first.intro, /complete Social Media Management/);
-  assert.deepEqual(first.options, ['I own a business']);
+  assert.deepEqual(first.options, ['I own a business', "I'm a creator/influencer", "I'm starting a new business"]);
   assert.equal(flow.getCurrentStep(phone).step, 'businessOwner');
   flow.processFlowResponse(phone, '1');
   assert.equal(flow.getCurrentStep(phone).step, 'clientName');
