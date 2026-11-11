@@ -105,7 +105,6 @@ test('completion sends thank you once then locks — Ok/Thanks/10 messages do no
     const { processFlowResponse } = flow;
     processFlowResponse(p, '1');
     processFlowResponse(p, 'Alex');
-    processFlowResponse(p, 'Acme');
     processFlowResponse(p, 'Food & Beverage');
     const done = processFlowResponse(p, 'https://instagram.com/x');
     assert.equal(done.done, true);
@@ -117,9 +116,8 @@ test('completion sends thank you once then locks — Ok/Thanks/10 messages do no
     flow.startServiceFlow(p, 'social');
     leads.updateLead(p, { completionMessageSent: false, conversationStatus: null });
     const before = sent.length;
-    await handleIncoming({ id: mid(), type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_identity_0' } } }, p);
+    await handleIncoming({ id: mid(), type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_businessOwner_0' } } }, p);
     await handleIncoming({ id: mid(), type: 'text', text: { body: 'Alex' } }, p);
-    await handleIncoming({ id: mid(), type: 'text', text: { body: 'Acme' } }, p);
     await handleIncoming({ id: mid(), type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_category_0' } } }, p);
     await handleIncoming({ id: mid(), type: 'text', text: { body: 'https://instagram.com/a' } }, p);
     const thankYouCount = sent.filter(m => /Thank you/.test(m.body || JSON.stringify(m))).length;
@@ -150,5 +148,23 @@ test('duplicate webhook ids processed once', async () => {
     // In-memory processed set returns early with no new send
     await handleIncoming({ id, type: 'text', text: { body: 'hi' } }, p);
     assert.equal(sent.length, first);
+  } finally { restore(); }
+});
+
+test('stretched greetings show the menu without the unknown-message fallback', async () => {
+  const { sent, leads, restore } = setup();
+  try {
+    const { handleIncoming } = require('../src/handlers/messageHandler');
+    const p = '919900003333';
+    leads.updateLead(p, {
+      automationEligible: true,
+      automationEnrolledAt: new Date().toISOString(),
+      welcomeSent: true,
+      messageCount: 1,
+    });
+    await handleIncoming({ id: mid(), type: 'text', text: { body: 'helloo' } }, p);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].type, 'list');
+    assert.equal(sent.some((message) => /not quite sure/i.test(message.body || '')), false);
   } finally { restore(); }
 });

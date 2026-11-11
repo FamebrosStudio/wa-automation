@@ -59,15 +59,14 @@ test('social media service asks one detail at a time, validates Instagram URLs, 
   const phone = `service-social-${Date.now()}`;
   const first = flow.startServiceFlow(phone, 'social');
   assert.match(first.intro, /complete Social Media Management/);
-  assert.deepEqual(first.options, ['I own a business', "I'm a creator/influencer", "I'm starting a new business"]);
-  flow.processFlowResponse(phone, '2');
+  assert.deepEqual(first.options, ['I own a business']);
+  assert.equal(flow.getCurrentStep(phone).step, 'businessOwner');
+  flow.processFlowResponse(phone, '1');
   assert.equal(flow.getCurrentStep(phone).step, 'clientName');
+  assert.equal(flow.getCurrentStep(phone).question, 'What is your name?');
   flow.processFlowResponse(phone, 'Priya Sharma');
-  assert.equal(flow.getCurrentStep(phone).step, 'businessName');
-  assert.equal(leads.getLead(phone).name, 'Priya Sharma');
-  flow.processFlowResponse(phone, 'Priya’s Kitchen');
   assert.equal(flow.getCurrentStep(phone).step, 'category');
-  assert.equal(leads.getLead(phone).business, 'Priya’s Kitchen');
+  assert.equal(leads.getLead(phone).name, 'Priya Sharma');
   assert.deepEqual(flow.getCurrentStep(phone).options, [
     'Food & Beverage', 'Fashion & Beauty', 'Health & Fitness', 'Home & Real Estate',
     'Retail & E-commerce', 'Education', 'Professional Services', 'Other',
@@ -83,11 +82,16 @@ test('social media service asks one detail at a time, validates Instagram URLs, 
   assert.equal(leads.getLead(phone).service, 'Social Media Management');
   assert.equal(leads.getLead(phone).assignedTeam, null);
   assert.equal(leads.getLead(phone).status, null);
-  assert.equal(leads.getLead(phone).serviceDetails.customerType, "I'm a creator/influencer");
   assert.equal(leads.getLead(phone).name, 'Priya Sharma');
-  assert.equal(leads.getLead(phone).business, 'Priya’s Kitchen');
   assert.equal(leads.getLead(phone).category, 'Food & Beverage');
   assert.equal(leads.getLead(phone).serviceDetails.instagram, 'https://www.instagram.com/example/');
+});
+
+test('legacy social flows resume at the first newly required detail', () => {
+  const phone = `service-social-legacy-${Date.now()}`;
+  flow.restoreFlow(phone, { service: 'social', step: 'instagram', data: { customerType: 'I own a business' }, history: ['identity'] });
+  assert.equal(flow.getCurrentStep(phone).step, 'clientName');
+  assert.equal(flow.processFlowResponse(phone, 'Priya').step, 'category');
 });
 
 test('Instagram link validation accepts only profile URLs on Instagram', () => {

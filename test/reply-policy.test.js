@@ -54,6 +54,14 @@ test('only newly enrolled contacts and their active flows receive automation', a
     await handleIncoming({ id: 'flow-1', type: 'text', text: { body: 'Business Website' } }, newPhone);
     assert.ok(sent.length > beforeFlowReply, 'newly enrolled contacts should receive replies while continuing an active flow');
 
+    const socialPhone = '919900001235';
+    await handleIncoming({ id: 'social-hello', type: 'text', text: { body: 'hi' } }, socialPhone);
+    await handleIncoming({ id: 'social-select', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_social' } } }, socialPhone);
+    const businessOptionMenu = sent.filter((item) => item.type === 'list').at(-1).body;
+    assert.equal(businessOptionMenu.sections[0].rows.length, 1);
+    assert.equal(businessOptionMenu.sections[0].rows[0].title, 'I own a business');
+    assert.equal(businessOptionMenu.sections[0].rows[0].description, undefined);
+
     leads.getLead(newPhone).status = 'Qualified';
     const beforeQualifiedMessage = sent.length;
     const qualifiedResult = await handleIncoming({ id: 'qualified-1', type: 'text', text: { body: 'hi' } }, newPhone);

@@ -12,11 +12,10 @@ const activeFlows = new Map();
 const SERVICE_FLOWS = {
   social: {
     service: 'Social Media Management',
-    intro: 'Great choice! 🚀\n\nAt Famebros Studio, we provide complete Social Media Management, including content planning, professional shoots, reels, creatives, captions and account management.\n\nTo understand your business better, please select:',
+    intro: 'Great choice! 🚀\n\nAt Famebros Studio, we provide complete Social Media Management, including content planning, professional shoots, reels, creatives, captions and account management.\n\nPlease tap the option below to continue.',
     steps: {
-      identity: { question: 'First, which best describes you?', options: ['I own a business', "I'm a creator/influencer", "I'm starting a new business"], field: 'customerType', next: 'clientName' },
-      clientName: { question: 'What is your name? (Example: Priya Sharma)', field: 'clientName', next: 'businessName' },
-      businessName: { question: 'What is your business or brand name? (Example: Priya’s Kitchen)', field: 'businessName', next: 'category' },
+      businessOwner: { question: 'Are you a business owner?', options: ['I own a business'], field: 'businessOwner', next: 'clientName' },
+      clientName: { question: 'What is your name?', field: 'clientName', next: 'category' },
       category: { question: 'Which category best describes your business?', options: ['Food & Beverage', 'Fashion & Beauty', 'Health & Fitness', 'Home & Real Estate', 'Retail & E-commerce', 'Education', 'Professional Services', 'Other'], field: 'category', next: 'instagram' },
       instagram: { question: 'Please share your Instagram profile link. Example: https://www.instagram.com/yourbrand/ (Please send the full link, not just a username.)', field: 'instagram', doneReply: 'Thank you! 😊\n\nWe\'ve received your business details and requirements.\n\nOur team will review everything and connect with you to discuss a suitable social media strategy and package.\n\n*Famebros Studio* 🚀' },
     },
@@ -237,6 +236,11 @@ function cancelFlow(phone) {
 }
 
 function restoreFlow(phone, state) {
+  // Existing persisted social flows used the old identity -> Instagram path.
+  // Route them through the new required details rather than dropping the flow.
+  if (state?.service === 'social' && !state.data?.clientName) {
+    state = { ...state, step: 'clientName', data: { ...(state.data || {}) } };
+  }
   const validStep = state?.service
     ? SERVICE_FLOWS[state.service]?.steps[state.step]
     : FLOW_STEPS[state?.step];

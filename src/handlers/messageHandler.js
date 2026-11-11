@@ -126,9 +126,6 @@ async function sendFlowChoices(to, step, options) {
     'Brand Promotional Reel': 'Brand promo reel',
   };
   const examples = {
-    'I own a business': 'Example: salon or restaurant owner',
-    "I'm a creator/influencer": 'Example: content creator',
-    "I'm starting a new business": 'Example: launching a new brand',
     'Food & Beverage': 'Example: cafe, bakery, restaurant',
     'Fashion & Beauty': 'Example: clothing, salon, skincare',
     'Health & Fitness': 'Example: clinic, gym, wellness',
@@ -165,11 +162,14 @@ async function sendFlowChoices(to, step, options) {
   };
   await whatsapp.list(to, {
     body: 'Tap an option to continue', button: 'Choose',
-    sections: [{ title: 'Options', rows: options.map((text, index) => ({
-      id: `flow_${step}_${index}`,
-      title: `${index + 1} ${shortLabels[text] || text}`.slice(0, 24),
-      description: (examples[text] || text).slice(0, 72),
-    })) }],
+    sections: [{ title: 'Options', rows: options.map((text, index) => {
+      const description = examples[text];
+      return {
+        id: `flow_${step}_${index}`,
+        title: `${options.length > 1 ? `${index + 1} ` : ''}${shortLabels[text] || text}`.slice(0, 24),
+        ...(description ? { description: description.slice(0, 72) } : {}),
+      };
+    }) }],
   });
 }
 
