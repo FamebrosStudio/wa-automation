@@ -134,6 +134,9 @@ const KEYWORD_MAP = [
 
 function matchKeyword(text) {
   const t = text.toLowerCase().trim();
+  // Handle common stretched greetings ("heyy", "helloo", "hiiii") as menu
+  // requests instead of sending the generic unknown-message fallback.
+  if (/^(?:h+i+|h+e+y+|h+e+l+o+|hola|namaste)(?:[\s!?,.]|$)/i.test(t)) return 'menu';
   const contextualSingleWords = new Set(['pricing', 'price', 'cost', 'packages', 'workflow']);
   for (const { keys, id } of KEYWORD_MAP) {
     if (keys.some((key) => {

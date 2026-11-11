@@ -16,6 +16,9 @@ test('generic keywords do not route ordinary questions', () => {
 
 test('standalone greetings and specific phrases still route', () => {
   assert.equal(matchKeyword('hi'), 'menu');
+  assert.equal(matchKeyword('heyy'), 'menu');
+  assert.equal(matchKeyword('helloo'), 'menu');
+  assert.equal(matchKeyword('hiiii there!'), 'menu');
   assert.equal(matchKeyword('what is your pricing?'), 'packages');
   assert.equal(matchKeyword('who have you worked with?'), 'clients');
   assert.equal(matchKeyword('talk to a human'), 'human');
