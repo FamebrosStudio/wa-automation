@@ -78,11 +78,11 @@ test('only newly enrolled contacts and their active flows receive automation', a
     await handleIncoming({ id: 'website-hello', type: 'text', text: { body: 'hi' } }, websitePhone);
     await handleIncoming({ id: 'website-service', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_website' } } }, websitePhone);
     const websiteChoices = sent.filter((item) => item.type === 'list').at(-1).body.sections[0].rows;
-    assert.ok(websiteChoices.some((item) => item.title === '3 Portfolio Website'));
+    assert.ok(websiteChoices.some((item) => item.title === '4 Landing Page'));
     assert.ok(websiteChoices.every((item) => item.description === undefined), 'example helper text is not sent to customers');
-    await handleIncoming({ id: 'website-choice', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_websiteType_2' } } }, websitePhone);
-    assert.equal(leads.getLead(websitePhone).serviceDetails.websiteType, 'Portfolio Website', 'the selected option is recorded without its example helper text');
-    assert.equal(sent.at(-1).body, 'What is your Business Name?');
+    await handleIncoming({ id: 'website-choice', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_websiteType_3' } } }, websitePhone);
+    assert.equal(leads.getLead(websitePhone).serviceDetails.websiteType, 'Landing Page', 'the selected option is recorded without its example helper text');
+    assert.equal(sent.at(-1).body, 'What is your name?');
 
     leads.getLead(newPhone).status = 'Qualified';
     const beforeQualifiedMessage = sent.length;

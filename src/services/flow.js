@@ -42,8 +42,8 @@ const SERVICE_FLOWS = {
     service: 'Website Development',
     intro: 'Let\'s build your online presence! 🌐\n\nWhat type of website are you looking for?',
     steps: {
-      websiteType: { question: 'What type of website are you looking for?', options: ['Business Website', 'E-commerce Website', 'Portfolio Website', 'Landing Page', 'Website Redesign', 'Need Guidance'], field: 'websiteType', next: 'businessName' },
-      businessName: { question: 'What is your Business Name?', field: 'businessName', next: 'currentWebsite' },
+      websiteType: { question: 'What type of website are you looking for?', options: ['Business Website', 'E-commerce Website', 'Portfolio Website', 'Landing Page', 'Website Redesign', 'Need Guidance'], field: 'websiteType', next: 'clientName' },
+      clientName: { question: 'What is your name?', field: 'clientName', next: 'currentWebsite' },
       currentWebsite: { question: 'Please share your current website link, or type “none” if you do not have one.', field: 'currentWebsite', doneReply: 'Thank you! ✅ We\'ve received your website requirements. Our website team will review them and get in touch shortly.' },
     },
   },
@@ -242,6 +242,11 @@ function restoreFlow(phone, state) {
   // Existing persisted social flows used the old identity -> Instagram path.
   // Route them through the new required details rather than dropping the flow.
   if (state?.service === 'social' && !state.data?.clientName) {
+    state = { ...state, step: 'clientName', data: { ...(state.data || {}) } };
+  }
+  // Older website flows asked for a business name here. Resume them at the
+  // client-name question without copying business data into the person's name.
+  if (state?.service === 'website' && state.step === 'businessName') {
     state = { ...state, step: 'clientName', data: { ...(state.data || {}) } };
   }
   const validStep = state?.service

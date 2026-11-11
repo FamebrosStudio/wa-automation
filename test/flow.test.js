@@ -112,6 +112,27 @@ test('legacy social flows resume at the first newly required detail', () => {
   assert.equal(flow.processFlowResponse(phone, 'Priya').step, 'category');
 });
 
+test('website flow asks for the client name after the website type, not the business name', () => {
+  const phone = `service-website-name-${Date.now()}`;
+  flow.startServiceFlow(phone, 'website');
+  const namePrompt = flow.processFlowResponse(phone, 'flow_websiteType_2');
+  assert.equal(namePrompt.step, 'clientName');
+  assert.equal(namePrompt.reply, 'What is your name?');
+  const websitePrompt = flow.processFlowResponse(phone, 'Asha Rao');
+  assert.equal(websitePrompt.step, 'currentWebsite');
+  assert.equal(leads.getLead(phone).name, 'Asha Rao');
+  assert.equal(leads.getLead(phone).business, null, 'a client name is not saved as their business name');
+  flow.cancelFlow(phone);
+});
+
+test('legacy website flow resumes at the client-name prompt', () => {
+  const phone = `service-website-legacy-${Date.now()}`;
+  flow.restoreFlow(phone, { service: 'website', step: 'businessName', data: { websiteType: 'Landing Page' }, history: [] });
+  assert.equal(flow.getCurrentStep(phone).step, 'clientName');
+  assert.equal(flow.getCurrentStep(phone).question, 'What is your name?');
+  flow.cancelFlow(phone);
+});
+
 test('Instagram link validation accepts only profile URLs on Instagram', () => {
   assert.equal(flow.normalizeInstagramProfileUrl('instagram.com/shop.name'), 'https://www.instagram.com/shop.name/');
   for (const invalid of [
