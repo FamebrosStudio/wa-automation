@@ -143,9 +143,12 @@ function processFlowResponse(phone, text) {
   const flowDefinition = flow.service ? SERVICE_FLOWS[flow.service] : null;
   const stepConfig = flowDefinition ? flowDefinition.steps[flow.step] : FLOW_STEPS[flow.step];
   if (!stepConfig) return null;
-  const selectedIndex = /^flow_[a-z0-9]+_(\d+)$/i.exec(normalized);
-  let answer = selectedIndex && stepConfig.options
-    ? stepConfig.options[Number(selectedIndex[1])]
+  const selectedIndex = /^flow_([a-z0-9]+)_(\d+)$/i.exec(normalized);
+  if (selectedIndex && (!stepConfig.options || selectedIndex[1].toLowerCase() !== flow.step.toLowerCase())) {
+    return { reply: stepConfig.question, options: stepConfig.options || null, step: flow.step, done: false, staleOption: true };
+  }
+  let answer = selectedIndex
+    ? stepConfig.options[Number(selectedIndex[2])]
     : stepConfig.options && /^\d+$/.test(normalized)
       ? stepConfig.options[Number(normalized) - 1]
       : normalized;

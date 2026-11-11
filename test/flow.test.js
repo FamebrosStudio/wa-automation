@@ -87,6 +87,24 @@ test('social media service asks one detail at a time, validates Instagram URLs, 
   assert.equal(leads.getLead(phone).serviceDetails.instagram, 'https://www.instagram.com/example/');
 });
 
+test('a delayed option tap cannot be saved as the client name after the flow advances', () => {
+  const phone = `service-social-stale-option-${Date.now()}`;
+  flow.startServiceFlow(phone, 'social');
+  const choice = flow.processFlowResponse(phone, 'flow_businessOwner_0');
+  assert.equal(choice.step, 'clientName');
+  assert.equal(flow.getCurrentStep(phone).question, 'What is your name?');
+
+  const staleChoice = flow.processFlowResponse(phone, 'flow_businessOwner_2');
+  assert.equal(staleChoice.staleOption, true);
+  assert.equal(staleChoice.step, 'clientName');
+  assert.equal(staleChoice.reply, 'What is your name?');
+  assert.equal(leads.getLead(phone).name, null);
+
+  flow.processFlowResponse(phone, 'Priya Sharma');
+  assert.equal(leads.getLead(phone).name, 'Priya Sharma');
+  flow.cancelFlow(phone);
+});
+
 test('legacy social flows resume at the first newly required detail', () => {
   const phone = `service-social-legacy-${Date.now()}`;
   flow.restoreFlow(phone, { service: 'social', step: 'instagram', data: { customerType: 'I own a business' }, history: ['identity'] });
