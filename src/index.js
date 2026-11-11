@@ -268,9 +268,25 @@ app.post('/reset', dashboardAuth, async (req, res) => {
       while (true) {
         const snapshot = await leadCollection.limit(400).get();
         if (!snapshot.docs.length) break;
-        const batch = db.batch();
-        snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-        await batch.commit();
+        const tombstones = db.batch();
+        const deletions = db.batch();
+        const clearedAt = new Date().toISOString();
+        snapshot.docs.forEach((doc) => {
+          const record = doc.data();
+          if (record?.phone) {
+            tombstones.set(db.collection('waAutomationInbox').doc(`dashboard-cleared-${firestore.recordId(record.phone)}`), {
+              phone: record.phone,
+              status: 'dashboard-cleared-tombstone',
+              clearedAt,
+            }, { merge: true });
+          }
+          deletions.delete(doc.ref);
+        });
+        // Commit the minimal old-contact markers before deleting CRM documents.
+        // This keeps the old-chat guard effective even for contacts whose
+        // historical inbound messages were never archived.
+        await tombstones.commit();
+        await deletions.commit();
         deletedLeads += snapshot.docs.length;
       }
     } else {

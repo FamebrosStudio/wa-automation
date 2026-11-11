@@ -281,9 +281,15 @@ async function handleIncomingInMemory(message, from) {
 }
 
 async function handleIncoming(message, from) {
-  if (firestore.isConfigured()) await firestore.archiveIncoming(message, from);
+  const durableHistoryEnabled = firestore.isConfigured();
+  if (durableHistoryEnabled) await firestore.archiveIncoming(message, from);
   const testRecipient = isAlwaysAutomatedTestNumber(from);
   if (isSuppressedNumber(from)) return { ignored: true, reason: 'suppressed-number' };
+  // In production an unknown contact cannot safely be treated as new unless
+  // durable history is available. This applies to test recipients as well.
+  if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && !durableHistoryEnabled) {
+    return { ignored: true, reason: 'contact-history-unavailable' };
+  }
   const messageTimestamp = Number(message.timestamp);
   const messageAgeMs = Date.now() - messageTimestamp * 1000;
   if (!testRecipient && Number.isFinite(messageTimestamp) && messageTimestamp > 0 && messageAgeMs > 24 * 60 * 60 * 1000) {
@@ -321,24 +327,38 @@ async function handleIncoming(message, from) {
         const [alreadyProcessed, storedRecord, hasPriorInboxMessage] = await Promise.all([
           message.id ? firestore.hasProcessedMessage(message.id) : false,
           firestore.getLeadByPhone(from),
-          !testRecipient && message.id ? firestore.hasPriorInboxMessage(from, message.id) : false,
+          message.id ? firestore.hasPriorInboxMessage(from, message.id) : false,
         ]);
         if (alreadyProcessed) return;
         record = storedRecord;
         priorInboxMessage = hasPriorInboxMessage;
       }
       if (releaseLease) await releaseLease.assertOwnership();
+      // A recordless contact with any earlier archived inbound is an old chat,
+      // including the normally automated test recipient. Do not re-enroll it.
+      if (priorInboxMessage && !record && !leads.snapshot(from).length) {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'existing-contact-not-enrolled' };
+      }
+      const incomingOption = interactiveReplyId(message);
+      const activeFlowExists = Boolean(record?.activeFlow || flow.snapshotFlow(from));
+      const explicitServiceSelection = message.type === 'interactive' && SERVICE_IDS[incomingOption] && incomingOption !== 'service_team';
+      if (testRecipient && priorInboxMessage && !activeFlowExists && !explicitServiceSelection) {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'test-chat-requires-active-flow-or-service-selection' };
+      }
       const previouslyStored = Boolean(record || leads.snapshot(from).length || priorInboxMessage);
       if (record) {
         leads.restoreOne(record);
         leads.updateLead(from, { assignedTeam: record.crm?.owner || '', crm: record.crm || {} });
         flow.restoreFlow(from, record.activeFlow);
       }
+      if (priorInboxMessage) leads.updateLead(from, { welcomeSent: true });
       const knownLead = leads.snapshot(from)[0]?.lead;
       // Enforce the existing-contact policy before any trigger paths, including
       // human handover, which otherwise could send an acknowledgement to an
       // old contact that is not explicitly enrolled for automation.
-      if (previouslyStored && !testRecipient && !hasFirstContactEnrollment(record || leads.snapshot(from)[0])) {
+      if (previouslyStored && !hasFirstContactEnrollment(record || leads.snapshot(from)[0])) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }

@@ -79,11 +79,11 @@ test('only newly enrolled contacts and their active flows receive automation', a
     assert.equal(sent.length, beforeQualifiedMessage, 'qualified contacts must never receive bot replies');
 
     const testPhone = '+91 98925 06314';
-    leads.updateLead(testPhone, { status: 'Qualified', humanRequested: true });
+    leads.updateLead(testPhone, { status: 'Qualified', humanRequested: true, automationEligible: true, automationEnrolledAt: new Date().toISOString() });
     process.env.BOT_ENABLED = 'false';
     const beforeTestPhone = sent.length;
     await handleIncoming({ id: 'test-recipient-1', type: 'text', text: { body: 'hi' } }, testPhone);
-    assert.ok(sent.length > beforeTestPhone, 'the designated test recipient bypasses old-contact and global automation gates');
+    assert.ok(sent.length > beforeTestPhone, 'the enrolled designated test recipient can test replies while global automation is off');
     process.env.BOT_ENABLED = 'true';
 
     const beforeBlocked = sent.length;

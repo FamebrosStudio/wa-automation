@@ -16,13 +16,21 @@ test('dashboard cleanup removes CRM records but preserves inbox and reply safegu
 
   const collectionsQueried = [];
   const documentsDeleted = [];
+  const tombstonesCreated = [];
   let leadDocs = ['crm-doc-1', 'crm-doc-2'];
+  const phonesByDoc = { 'crm-doc-1': '919900000001', 'crm-doc-2': '919900000002' };
   const db = {
     collection(name) {
       collectionsQueried.push(name);
+      if (name === 'waAutomationInbox') {
+        return { doc: (id) => ({ collection: name, id }) };
+      }
       return {
         limit() {
-          return { get: async () => ({ docs: leadDocs.map((id) => ({ ref: { collection: name, id } })) }) };
+          return { get: async () => ({ docs: leadDocs.map((id) => ({
+            ref: { collection: name, id },
+            data: () => ({ phone: phonesByDoc[id] }),
+          })) }) };
         },
       };
     },
@@ -30,6 +38,7 @@ test('dashboard cleanup removes CRM records but preserves inbox and reply safegu
       const pending = [];
       return {
         delete(ref) { pending.push(ref); },
+        set(ref, data) { tombstonesCreated.push({ ref, data }); },
         async commit() {
           documentsDeleted.push(...pending);
           leadDocs = leadDocs.filter((id) => !pending.some((ref) => ref.id === id));
@@ -38,7 +47,11 @@ test('dashboard cleanup removes CRM records but preserves inbox and reply safegu
     },
   };
 
-  const fakeFirestore = { isConfigured: () => true, database: async () => db };
+  const fakeFirestore = {
+    isConfigured: () => true,
+    database: async () => db,
+    recordId: (phone) => Buffer.from(phone).toString('base64url'),
+  };
   const originalLoad = Module._load;
   Module._load = function (request, parent, isMain) {
     if (parent?.filename.replaceAll('\\', '/').endsWith('/src/index.js')) {
@@ -58,9 +71,12 @@ test('dashboard cleanup removes CRM records but preserves inbox and reply safegu
     const response = await fetch(`${root}/reset`, { method: 'POST', headers: { authorization } });
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { reset: true, deletedLeads: 2, safeguardsPreserved: true });
-    assert.deepEqual(collectionsQueried, ['waAutomationLeads']);
+    assert.deepEqual(collectionsQueried, ['waAutomationLeads', 'waAutomationInbox', 'waAutomationInbox']);
     assert.equal(documentsDeleted.length, 2);
     assert.ok(documentsDeleted.every((doc) => doc.collection === 'waAutomationLeads'));
+    assert.equal(tombstonesCreated.length, 2);
+    assert.ok(tombstonesCreated.every(({ ref, data }) => ref.collection === 'waAutomationInbox' && data.status === 'dashboard-cleared-tombstone'));
+    assert.ok(tombstonesCreated.every(({ data }) => data.phone && !('message' in data)), 'safeguard tombstones keep only the contact number and timestamp');
     assert.equal(leads.snapshot().length, 0);
   } finally {
     if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
