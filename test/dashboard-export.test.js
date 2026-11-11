@@ -71,6 +71,15 @@ test('CRM export is an authenticated Excel workbook with lead and conversation s
     }
     const invalidStatus = await fetch(`${root}/leads/export?status=Unknown`, { headers: { authorization: auth } });
     assert.equal(invalidStatus.status, 400);
+
+    const qualifiedId = Buffer.from('919876543211').toString('base64url');
+    const clearStatus = await fetch(`${root}/leads/${qualifiedId}`, {
+      method: 'PATCH',
+      headers: { authorization: auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ status: null }),
+    });
+    assert.equal(clearStatus.status, 200, 'choosing New (unassigned) clears the existing stage');
+    assert.equal((await clearStatus.json()).status, null);
   } finally {
     if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     Module._load = realLoad;

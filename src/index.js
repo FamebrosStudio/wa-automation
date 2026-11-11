@@ -195,7 +195,7 @@ app.get('/leads/:id', dashboardAuth, async (req, res) => {
 app.patch('/leads/:id', dashboardAuth, async (req, res) => {
   if (!safeRecordId(req.params.id)) return res.sendStatus(400);
   const { status, notes, tags, owner, contactType, botPaused, humanTakeover } = req.body || {};
-  if (status !== undefined && !LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid lead status' });
+  if (status !== undefined && status !== null && !LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid lead status' });
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > 5000)) return res.status(400).json({ error: 'Notes must be text up to 5000 characters' });
   if (owner !== undefined && (typeof owner !== 'string' || owner.length > 120)) return res.status(400).json({ error: 'Owner must be text up to 120 characters' });
   if (tags !== undefined && (!Array.isArray(tags) || tags.length > 30 || tags.some((tag) => typeof tag !== 'string' || tag.length > 40))) {
@@ -213,7 +213,7 @@ app.patch('/leads/:id', dashboardAuth, async (req, res) => {
     if (notes !== undefined) crm.notes = notes;
     if (owner !== undefined) crm.owner = owner.trim();
     if (tags !== undefined) crm.tags = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
-    if (status !== undefined) record.lead.status = status;
+    if (status !== undefined) record.lead.status = status || null;
     if (firestore.isConfigured()) await firestore.save([{ ...record, crm }]);
     else {
       record.crm = crm;

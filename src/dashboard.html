@@ -229,76 +229,78 @@
 
     /* Sales desk refresh: calm, high-contrast shadcn-inspired workspace */
     :root{
-      color-scheme:light;
-      --background:#f7f8fa;--foreground:#17211d;--card:#fff;--card-foreground:#17211d;
-      --primary:#16794c;--primary-foreground:#fff;--secondary:#f1f4f2;--muted:#f1f4f2;
-      --muted-foreground:#66736c;--accent:#e9f3ed;--accent-foreground:#145c3c;
-      --border:#e2e8e4;--input:#dbe3de;--ring:#35a36d;--radius:.75rem;
+      color-scheme:dark;
+      --background:#090b0a;--foreground:#f4f7f5;--card:#121614;--card-foreground:#f4f7f5;
+      --primary:#2bb673;--primary-foreground:#07130c;--secondary:#1a201c;--muted:#171c19;
+      --muted-foreground:#98a59d;--accent:#1d2b23;--accent-foreground:#d7f4e2;
+      --border:#29322d;--input:#303a34;--ring:#42ca85;--radius:.75rem;
       --qualified:#16834f;--pending:#b7791f;--rejected:#c44646;
     }
-    body{background:var(--background);font-family:Inter,system-ui,sans-serif}
+    body{background:var(--background);color:var(--foreground);font-family:Inter,system-ui,sans-serif}
     .app{grid-template-columns:272px minmax(0,1fr)}
-    .sidebar{background:#fff;border-color:var(--border);padding:20px 16px}
+    .sidebar{background:#0d100e;border-color:var(--border);padding:20px 16px}
     .brand{padding:0 4px 20px;margin-bottom:18px}
-    .brand-mark{border-radius:10px;background:#176b46;color:#fff;box-shadow:0 4px 10px #176b4626}
-    .brand-name{color:#17211d;font-size:14px}.brand-subtitle{color:#78847e}
-    .sidebar-heading{margin:6px 4px 10px;color:#65736b;font-size:11px;letter-spacing:.08em}
-    .sidebar-help{margin:0 3px 12px;color:#7a867f;font-size:11px;line-height:1.5}
-    .search{height:40px;background:#fbfcfb;border-color:#dfe6e1;border-radius:9px;color:#17211d}
-    .person{padding:9px;border-radius:10px}.person:hover,.person.is-selected{background:#f1f7f3;border-color:#e2eee6}
-    .avatar{width:36px;height:36px;background:#e9f3ed;border-color:#dcebe1;color:#176b46}
-    .person-name{font-size:13px;color:#26352d}.person-service{font-size:11px}
-    .person-details{height:30px;border-color:#e2e8e4;color:#526259}
-    .assign-menu{background:#fff;border-color:#e2e8e4;box-shadow:0 12px 30px #14251c18}
-    .assign-option{color:#26352d}.assign-option:hover{background:#f1f7f3}
+    .brand-mark{border-radius:10px;background:#2bb673;color:#07130c;box-shadow:0 4px 14px #2bb67324}
+    .brand-name{color:#f1f5f2;font-size:14px}.brand-subtitle{color:#89968e}
+    .sidebar-heading{margin:6px 4px 10px;color:#98a59d;font-size:11px;letter-spacing:.08em}
+    .sidebar-help{margin:0 3px 12px;color:#89968e;font-size:11px;line-height:1.5}
+    .sidebar-close{display:none;align-self:flex-end;margin:-7px -5px 12px 0}
+    .search{height:40px;background:#090b0a;border-color:#303a34;border-radius:9px;color:#f4f7f5}
+    .person{padding:9px;border-radius:10px}.person:hover,.person.is-selected{background:#171e1a;border-color:#293a30}
+    .avatar{width:36px;height:36px;background:#1b2b21;border-color:#2b4334;color:#72d99d}
+    .person-name{font-size:13px;color:#e9efeb}.person-service{font-size:11px}
+    .person-details{height:30px;border-color:#303a34;color:#a5b1aa}
+    .assign-menu{background:#121614;border-color:#303a34;box-shadow:0 12px 30px #0008}
+    .assign-option{color:#e9efeb}.assign-option:hover{background:#1d2b23}
     .main{height:100vh}
-    .sticky-header{padding:26px 32px 20px;background:#f7f8faee;border-color:#e7ece8;backdrop-filter:blur(14px)}
-    .page-head{align-items:center}.page-eyebrow{margin:0 0 6px;color:#16794c;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
-    h1{font-size:25px;letter-spacing:-.04em;color:#17211d}.intro{font-size:13px;color:#69766f}
+    .sticky-header{padding:26px 32px 20px;background:#090b0aee;border-color:#202723;backdrop-filter:blur(14px)}
+    .page-head{align-items:center}.page-eyebrow{margin:0 0 6px;color:#49ce86;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+    h1{font-size:25px;letter-spacing:-.04em;color:#f4f7f5}.intro{font-size:13px;color:#98a59d}
     .head-actions{gap:8px}.btn{height:36px;padding:0 13px;border-radius:9px;font-size:12px}
-    .btn-secondary{background:#fff;color:#34433a;border-color:#dfe6e1}.btn-secondary:hover{background:#f2f6f3}
-    .btn-primary{background:#16794c;color:#fff}.btn-primary:hover{background:#11643e;opacity:1}
-    .btn-outline{background:#fff;border-color:#dfe6e1;color:#3c4b42}.btn-outline:hover{background:#f2f6f3}
+    .btn-secondary{background:#171c19;color:#e8eee9;border-color:#303a34}.btn-secondary:hover{background:#222a25}
+    .btn-primary{background:#2bb673;color:#07130c}.btn-primary:hover{background:#42ca85;opacity:1}
+    .btn-outline{background:#101411;border-color:#303a34;color:#d7dfd9}.btn-outline:hover{background:#1b211d}
     .btn-sm{height:30px;padding:0 10px;font-size:11px}
     .pipeline-summary{display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:10px;margin-top:18px;max-width:700px}
-    .summary-badge{min-height:60px;justify-content:flex-start;border-radius:11px;background:#fff;padding:10px 13px;color:#26352d;font-size:13px;font-weight:600;box-shadow:0 1px 2px #13231908}
+    .summary-badge{min-height:60px;justify-content:flex-start;border-radius:11px;background:#121614;padding:10px 13px;color:#e4ebe6;font-size:13px;font-weight:600;box-shadow:0 1px 2px #0003}
     .summary-badge .dot{width:8px;height:8px;flex:0 0 8px}
-    .status-exports{margin-top:12px}.status-exports-label{font-size:11px;color:#738078}
-    .mobile-tabs{background:#fff}.tabs-list{background:#f0f3f1}.tab{color:#647168}.tab[data-active=true]{background:#fff;color:#1d3025;box-shadow:0 1px 3px #14251c20}
+    .status-exports{margin-top:12px}.status-exports-label{font-size:11px;color:#98a59d}
+    .mobile-tabs{background:#0d100e}.tabs-list{background:#171c19}.tab{color:#98a59d}.tab[data-active=true]{background:#272f2a;color:#f1f5f2;box-shadow:0 1px 3px #0005}
     .board-wrap{padding:20px 32px 32px}
     .board{gap:14px}
-    .lane{min-height:calc(100vh - 260px);padding:14px;border-radius:13px;border-color:#e2e8e4;background:#f1f4f2}
+    .lane{min-height:calc(100vh - 260px);padding:14px;border-radius:13px;border-color:#252e29;background:#101411}
     .lane-head{align-items:flex-start;margin-bottom:12px;padding:2px 2px 8px}
-    .lane-heading-copy{display:grid;gap:3px}.lane-title{font-size:13px;color:#25352b}
-    .lane-description{font-size:11px;color:#79857e}
-    .count{padding:2px 8px;border-radius:999px;background:#fff;color:#59675e;font-size:11px}
+    .lane-heading-copy{display:grid;gap:3px}.lane-title{font-size:13px;color:#e4ebe6}
+    .lane-description{font-size:11px;color:#89968e}
+    .count{padding:2px 8px;border-radius:999px;background:#1a201c;color:#b3beb7;font-size:11px}
     .lane-list{display:grid;gap:9px}
-    .lead-card{padding:14px;border-color:#e4e9e5;border-radius:11px;background:#fff;color:#17211d;box-shadow:0 1px 2px #1024180a;cursor:pointer}
-    .lead-card:hover{border-color:#c9d9cf;background:#fff;box-shadow:0 6px 18px #1024180d;transform:translateY(-1px)}
-    .lead-card.is-selected{border-color:#56a879;box-shadow:0 0 0 2px #56a87924}
-    .lead-name{color:#1a2b21;font-size:14px}.lead-business{color:#758078}
+    .lead-card{padding:14px;border-color:#29322d;border-radius:11px;background:#151a17;color:#f4f7f5;box-shadow:0 1px 2px #0003;cursor:pointer}
+    .lead-card:hover{border-color:#3c5143;background:#171e1a;box-shadow:0 6px 18px #0004;transform:translateY(-1px)}
+    .lead-card.is-selected{border-color:#42a970;box-shadow:0 0 0 2px #42a97030}
+    .lead-name{color:#edf3ef;font-size:14px}.lead-business{color:#98a59d}
     .badge{margin-top:8px;border-radius:999px;font-size:10px}
-    .badge-qualified{background:#e9f5ed;color:#18734a;border-color:#d8ebdf}
-    .badge-pending{background:#fbf3e4;color:#996516;border-color:#f2e5c8}
-    .badge-rejected{background:#faeceb;color:#a83e3e;border-color:#f0d8d6}
-    .lead-meta{border-color:#edf0ee;color:#718078}
-    .card-details{min-height:30px;border-color:#dfe6e1;border-radius:7px;background:#fff;color:#3d4e43;font-size:11px}
-    .card-details:hover{background:#f1f7f3;border-color:#c9d9cf}
-    .empty-lane{border-color:#dce4df;background:#fff;color:#79857e}
-    dialog{background:#fff;color:#17211d;border-color:#dfe6e1;box-shadow:0 24px 60px #14251c30}
-    dialog::backdrop{background:#14251c66;backdrop-filter:blur(3px)}
-    .dialog-head{border-color:#e8ede9}.dialog-title{color:#1a2b21;font-size:18px}.dialog-subtitle{color:#728078}
-    .icon-btn{color:#68766e}.detail-field,.message,.switch-row{background:#f7f9f7;border-color:#e3e9e5}
-    .detail-label,.section-title,.form-field label{color:#69766f}.detail-value{color:#26352d}.detail-value a{color:#16794c}
-    .form-field input,.form-field select,.form-field textarea{background:#fff;border-color:#dfe6e1;color:#17211d;border-radius:8px}
-    .switch input:checked{background:#16794c}.toast{background:#fff;color:#17211d;border-color:#dfe6e1;box-shadow:0 8px 28px #14251c20}
-    .toast-dot{background:#16834f}
+    .badge-qualified{background:#142a1d;color:#71d89c;border-color:#264b34}
+    .badge-pending{background:#2c2516;color:#e5bd69;border-color:#514123}
+    .badge-rejected{background:#301c1c;color:#ed8d89;border-color:#512c2c}
+    .lead-meta{border-color:#29322d;color:#98a59d}
+    .card-details{min-height:30px;border-color:#344038;border-radius:7px;background:#171e1a;color:#d8e1db;font-size:11px}
+    .card-details:hover{background:#1d2b23;border-color:#42634e}
+    .empty-lane{border-color:#303a34;background:#141916;color:#89968e}
+    dialog{background:#111512;color:#f4f7f5;border-color:#303a34;box-shadow:0 24px 60px #000a}
+    dialog::backdrop{background:#000a;backdrop-filter:blur(3px)}
+    .dialog-head{border-color:#29322d}.dialog-title{color:#f1f5f2;font-size:18px}.dialog-subtitle{color:#98a59d}
+    .icon-btn{color:#aab5ae}.detail-field,.message,.switch-row{background:#151a17;border-color:#303a34}
+    .detail-label,.section-title,.form-field label{color:#98a59d}.detail-value{color:#e1e9e3}.detail-value a{color:#59d38e}
+    .form-field input,.form-field select,.form-field textarea{background:#0c100d;border-color:#303a34;color:#f4f7f5;border-radius:8px}
+    .switch input:checked{background:#2bb673}.toast{background:#151a17;color:#f1f5f2;border-color:#303a34;box-shadow:0 8px 28px #0008}
+    .toast-dot{background:#42ca85}
     @media(max-width:1050px){.sticky-header{padding-left:22px;padding-right:22px}.board-wrap{padding-left:22px;padding-right:22px}}
     @media(max-width:760px){
       .app{grid-template-columns:1fr}.sticky-header{padding:16px 16px 14px}.page-head{align-items:flex-start;flex-direction:column}.head-actions{width:100%;flex-wrap:wrap}
       .pipeline-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:14px}.summary-badge{min-height:52px;padding:8px;font-size:10px;gap:5px}
-      .status-exports{gap:5px}.status-exports-label{width:100%}.board-wrap{padding:12px 14px 24px}.lane{background:#f1f4f2}
+      .status-exports{gap:5px}.status-exports-label{width:100%}.board-wrap{padding:12px 14px 24px}.lane{background:#101411}
       .mobile-tabs{padding:8px 14px}.lane-description{font-size:10px}h1{font-size:22px}
+      .sidebar.open .sidebar-close{display:inline-flex}
     }
   </style>
 </head>
@@ -306,6 +308,7 @@
   <div class="app">
     <!-- Sidebar - shadcn Sidebar -->
     <aside class="sidebar" id="sidebar" aria-label="Lead navigation">
+      <button id="closeNewLeads" class="btn btn-secondary btn-sm sidebar-close" type="button">Close new enquiries</button>
       <div class="brand">
         <div class="brand-mark">F</div>
         <div><div class="brand-name">Famebros Studio</div><div class="brand-subtitle">Sales desk</div></div>
@@ -341,7 +344,7 @@
             </nav>
           </div>
           <div class="head-actions">
-            <button id="mobileNewBtn" class="btn btn-secondary btn-sm" type="button" style="display:none">Review new <span id="mobileNewCount">0</span></button>
+            <button id="mobileNewBtn" class="btn btn-secondary btn-sm" type="button" aria-expanded="false" aria-controls="sidebar" style="display:none">Review new <span id="mobileNewCount">0</span></button>
             <a id="exportCrm" class="btn btn-outline" href="/leads/export" download="famebros-crm.xlsx" aria-label="Export all CRM leads and conversation history to Excel">Download full CRM</a>
             <button id="refresh" class="btn btn-secondary" type="button"><span id="refreshText">Refresh</span></button>
           </div>
@@ -350,10 +353,10 @@
 
       <!-- Mobile Tabs -->
       <div class="mobile-tabs">
-        <div class="tabs-list" id="mobileTabs">
-          <button class="tab" data-tab="Qualified" data-active="true" type="button">Qualified</button>
-          <button class="tab" data-tab="Non-confirmed" data-active="false" type="button">Non-confirmed</button>
-          <button class="tab" data-tab="Non-qualified" data-active="false" type="button">Non-qualified</button>
+      <div class="tabs-list" id="mobileTabs">
+          <button class="tab" data-tab="Qualified" data-active="true" aria-pressed="true" type="button">Qualified</button>
+          <button class="tab" data-tab="Non-confirmed" data-active="false" aria-pressed="false" type="button">Non-confirmed</button>
+          <button class="tab" data-tab="Non-qualified" data-active="false" aria-pressed="false" type="button">Non-qualified</button>
         </div>
       </div>
 
@@ -412,12 +415,25 @@
       const tab = e.target.closest('.tab');
       if (!tab) return;
       activeTab = tab.dataset.tab;
-      document.querySelectorAll('#mobileTabs .tab').forEach(t => t.dataset.active = t === tab ? 'true' : 'false');
+      document.querySelectorAll('#mobileTabs .tab').forEach(t => {
+        const active = t === tab;
+        t.dataset.active = String(active);
+        t.setAttribute('aria-pressed', String(active));
+      });
       renderBoard();
     });
 
     // Mobile new leads drawer
-    document.getElementById('mobileNewBtn').addEventListener('click', () => sidebarEl.classList.toggle('open'));
+    document.getElementById('mobileNewBtn').addEventListener('click', () => {
+      const isOpen = sidebarEl.classList.toggle('open');
+      document.getElementById('mobileNewBtn').setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) document.getElementById('closeNewLeads').focus();
+    });
+    document.getElementById('closeNewLeads').addEventListener('click', () => {
+      sidebarEl.classList.remove('open');
+      document.getElementById('mobileNewBtn').setAttribute('aria-expanded', 'false');
+      document.getElementById('mobileNewBtn').focus();
+    });
 
     function load() {
       if (loadPromise) return loadPromise;
@@ -460,7 +476,11 @@
       document.getElementById('peopleCount').textContent = String(newCount);
       document.getElementById('mobileNewCount').textContent = newCount;
       const mb = document.getElementById('mobileNewBtn');
-      mb.style.display = newCount ? 'inline-flex' : 'none';
+      mb.style.display = newCount && window.innerWidth <= 760 ? 'inline-flex' : 'none';
+      if (window.innerWidth > 760) {
+        sidebarEl.classList.remove('open');
+        mb.setAttribute('aria-expanded', 'false');
+      }
     }
 
     function makeText(tag, className, text) {
@@ -496,6 +516,8 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `person${selectedId === lead.id ? ' is-selected' : ''}`;
+        button.setAttribute('aria-label', `Choose a status for ${displayName(lead)}`);
+        button.setAttribute('aria-expanded', String(openAssignFor === lead.id));
         const initials = displayName(lead).split(/\s+/).slice(0,2).map(p=>p[0]||'').join('').toUpperCase();
         button.append(makeText('span','avatar', initials||'L'));
         const copy = document.createElement('span'); copy.className='person-copy';
@@ -556,8 +578,8 @@
     function createLeadCard(lead) {
       const card=document.createElement('article'); card.draggable=true;
       card.className=`lead-card fade-in${selectedId===lead.id?' is-selected':''}`; card.dataset.id=lead.id;
-      card.title='Drag to change status';
-      card.addEventListener('click',()=>selectLead(lead.id));
+      card.title='Open lead details, or drag to change status';
+      card.addEventListener('click',()=>openLead(lead.id));
       card.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',lead.id);e.dataTransfer.effectAllowed='move';card.classList.add('is-dragging');});
       card.addEventListener('dragend',()=>card.classList.remove('is-dragging'));
       const top=document.createElement('div'); top.className='lead-card-top';
@@ -596,6 +618,8 @@
         const r=await fetch(`/leads/${encodeURIComponent(id)}`); if(!r.ok) throw new Error(`Could not load lead (${r.status})`);
         const data=await r.json(); const lead=data.lead||{}; const crm=data.crm||{};
         selectedId=id; openAssignFor=null;
+        sidebarEl.classList.remove('open');
+        document.getElementById('mobileNewBtn').setAttribute('aria-expanded', 'false');
         document.getElementById('dialogTitle').textContent=displayName(lead);
         document.getElementById('dialogSubtitle').textContent=`${lead.service||'General enquiry'} · ${id}`;
         dialogBody.replaceChildren();
@@ -675,26 +699,34 @@
         dialogBody.append(form);
         const actions=document.createElement('div'); actions.className='dialog-actions';
         const close=makeText('button','btn btn-secondary','Close'); close.type='button'; close.addEventListener('click',()=>dialog.close());
-        const save=makeText('button','btn btn-primary','Save changes'); save.type='button'; save.addEventListener('click',()=>saveLead(id));
+        const save=makeText('button','btn btn-primary','Save changes'); save.type='button'; save.addEventListener('click',()=>saveLead(id,save));
         actions.append(close,save); dialogBody.append(actions);
         if(!dialog.open) dialog.showModal();
         renderPeople(); renderBoard();
       }catch(e){ showToast(e.message); }
     }
 
-    async function saveLead(id){
+    async function saveLead(id, saveButton){
+      if (saveButton.disabled) return;
       const payload={
         contactType: document.getElementById('editContactType').value,
         botPaused: !document.getElementById('editBotEnabled').checked,
         humanTakeover: document.getElementById('editHumanTakeover').checked,
-        ...(document.getElementById('editStatus').value ? {status: document.getElementById('editStatus').value} : {}),
+        status: document.getElementById('editStatus').value || null,
         owner: document.getElementById('editOwner').value,
         notes: document.getElementById('editNotes').value,
         tags: document.getElementById('editTags').value.split(',').map(t=>t.trim()).filter(Boolean),
       };
-      const r=await fetch(`/leads/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      if(!r.ok){ showToast(`Save failed (${r.status})`); return; }
-      await load(); showToast('Lead updated'); dialog.close();
+      saveButton.disabled=true; saveButton.textContent='Saving…';
+      try {
+        const r=await fetch(`/leads/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        if(!r.ok) throw new Error(`Save failed (${r.status})`);
+        await load(); showToast('Lead updated'); dialog.close();
+      } catch (error) {
+        showToast(error.message || 'Could not save lead');
+      } finally {
+        if (saveButton.isConnected) { saveButton.disabled=false; saveButton.textContent='Save changes'; }
+      }
     }
 
     async function updateStatus(id,status){
@@ -703,6 +735,10 @@
       try{
         const r=await fetch(`/leads/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
         if(!r.ok) throw new Error(`Could not move lead (${r.status})`);
+        if (window.innerWidth <= 760) {
+          sidebarEl.classList.remove('open');
+          document.getElementById('mobileNewBtn').setAttribute('aria-expanded', 'false');
+        }
         showToast(`Moved to ${status}`);
       }catch(e){ lead.status=prev; renderSummary(); renderPeople(); renderBoard(); showToast(e.message); }
     }
@@ -717,7 +753,7 @@
     document.getElementById('refresh').addEventListener('click',load);
     document.getElementById('closeDialog').addEventListener('click',()=>dialog.close());
     dialog.addEventListener('click',e=>{if(e.target===dialog) dialog.close();});
-    window.addEventListener('resize',renderBoard);
+    window.addEventListener('resize',()=>{renderSummary();renderBoard();});
     load();
     setInterval(()=>{ if(document.visibilityState==='visible') load(); },60000);
   </script>
