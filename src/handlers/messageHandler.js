@@ -319,6 +319,13 @@ async function handleIncoming(message, from) {
         flow.restoreFlow(from, record.activeFlow);
       }
       const knownLead = leads.snapshot(from)[0]?.lead;
+      // Enforce the existing-contact policy before any trigger paths, including
+      // human handover, which otherwise could send an acknowledgement to an
+      // old contact that is not explicitly enrolled for automation.
+      if (previouslyStored && !eligibility(record || leads.snapshot(from)[0]).allowed) {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'existing-contact-not-enrolled' };
+      }
       const body = message.type === 'text' ? (message.text?.body || '').trim() : '';
       const option = interactiveReplyId(message);
       const isNewServiceSelection = message.type === 'interactive' && SERVICE_IDS[option] && option !== 'service_team';

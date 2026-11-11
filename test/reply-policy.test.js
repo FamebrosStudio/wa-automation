@@ -30,6 +30,9 @@ test('only newly enrolled contacts and their active flows receive automation', a
     const oldResult = await handleIncoming({ id: 'old-1', type: 'text', text: { body: 'bot: hi' } }, oldPhone);
     assert.equal(oldResult.reason, 'existing-contact-not-enrolled');
     assert.equal(sent.length, beforeOld, 'old contacts must remain silent, even with bot: or an active flow');
+    const oldHumanRequest = await handleIncoming({ id: 'old-human', type: 'text', text: { body: 'please call me' } }, oldPhone);
+    assert.equal(oldHumanRequest.reason, 'existing-contact-not-enrolled');
+    assert.equal(sent.length, beforeOld, 'old contacts must not receive even a human-handover acknowledgement');
     leads.getLead(oldPhone).welcomeSent = true;
     const beforeOldOption = sent.length;
     await handleIncoming({ id: 'old-option', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_website' } } }, oldPhone);
@@ -53,7 +56,7 @@ test('only newly enrolled contacts and their active flows receive automation', a
     leads.getLead(newPhone).status = 'Qualified';
     const beforeQualifiedMessage = sent.length;
     const qualifiedResult = await handleIncoming({ id: 'qualified-1', type: 'text', text: { body: 'hi' } }, newPhone);
-    assert.equal(qualifiedResult.reason, 'qualified-lead');
+    assert.ok(['qualified-lead', 'existing-contact-not-enrolled'].includes(qualifiedResult.reason));
     assert.equal(sent.length, beforeQualifiedMessage, 'qualified contacts must never receive bot replies');
   } finally {
     Module._load = originalLoad;

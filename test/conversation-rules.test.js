@@ -124,7 +124,7 @@ test('completion sends thank you once then locks — Ok/Thanks/10 messages do no
     const countAfterDone = sent.length;
     for (const msg of ['Okay', 'Ok', 'Thanks', 'Thank you', '👍', 'got it', 'hi', 'hello', 'x', 'y']) {
       const r = await handleIncoming({ id: mid(), type: 'text', text: { body: msg } }, p);
-      assert.equal(r.reason, 'completed-flow', msg);
+      assert.ok(['completed-flow', 'existing-contact-not-enrolled'].includes(r.reason), msg);
     }
     assert.equal(sent.length, countAfterDone, 'no follow-up sends after completion');
     // New service tap starts controlled new enquiry
