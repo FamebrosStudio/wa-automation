@@ -226,6 +226,80 @@
       h1{font-size:18px}
     }
     @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+
+    /* Sales desk refresh: calm, high-contrast shadcn-inspired workspace */
+    :root{
+      color-scheme:light;
+      --background:#f7f8fa;--foreground:#17211d;--card:#fff;--card-foreground:#17211d;
+      --primary:#16794c;--primary-foreground:#fff;--secondary:#f1f4f2;--muted:#f1f4f2;
+      --muted-foreground:#66736c;--accent:#e9f3ed;--accent-foreground:#145c3c;
+      --border:#e2e8e4;--input:#dbe3de;--ring:#35a36d;--radius:.75rem;
+      --qualified:#16834f;--pending:#b7791f;--rejected:#c44646;
+    }
+    body{background:var(--background);font-family:Inter,system-ui,sans-serif}
+    .app{grid-template-columns:272px minmax(0,1fr)}
+    .sidebar{background:#fff;border-color:var(--border);padding:20px 16px}
+    .brand{padding:0 4px 20px;margin-bottom:18px}
+    .brand-mark{border-radius:10px;background:#176b46;color:#fff;box-shadow:0 4px 10px #176b4626}
+    .brand-name{color:#17211d;font-size:14px}.brand-subtitle{color:#78847e}
+    .sidebar-heading{margin:6px 4px 10px;color:#65736b;font-size:11px;letter-spacing:.08em}
+    .sidebar-help{margin:0 3px 12px;color:#7a867f;font-size:11px;line-height:1.5}
+    .search{height:40px;background:#fbfcfb;border-color:#dfe6e1;border-radius:9px;color:#17211d}
+    .person{padding:9px;border-radius:10px}.person:hover,.person.is-selected{background:#f1f7f3;border-color:#e2eee6}
+    .avatar{width:36px;height:36px;background:#e9f3ed;border-color:#dcebe1;color:#176b46}
+    .person-name{font-size:13px;color:#26352d}.person-service{font-size:11px}
+    .person-details{height:30px;border-color:#e2e8e4;color:#526259}
+    .assign-menu{background:#fff;border-color:#e2e8e4;box-shadow:0 12px 30px #14251c18}
+    .assign-option{color:#26352d}.assign-option:hover{background:#f1f7f3}
+    .main{height:100vh}
+    .sticky-header{padding:26px 32px 20px;background:#f7f8faee;border-color:#e7ece8;backdrop-filter:blur(14px)}
+    .page-head{align-items:center}.page-eyebrow{margin:0 0 6px;color:#16794c;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+    h1{font-size:25px;letter-spacing:-.04em;color:#17211d}.intro{font-size:13px;color:#69766f}
+    .head-actions{gap:8px}.btn{height:36px;padding:0 13px;border-radius:9px;font-size:12px}
+    .btn-secondary{background:#fff;color:#34433a;border-color:#dfe6e1}.btn-secondary:hover{background:#f2f6f3}
+    .btn-primary{background:#16794c;color:#fff}.btn-primary:hover{background:#11643e;opacity:1}
+    .btn-outline{background:#fff;border-color:#dfe6e1;color:#3c4b42}.btn-outline:hover{background:#f2f6f3}
+    .btn-sm{height:30px;padding:0 10px;font-size:11px}
+    .pipeline-summary{display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:10px;margin-top:18px;max-width:700px}
+    .summary-badge{min-height:60px;justify-content:flex-start;border-radius:11px;background:#fff;padding:10px 13px;color:#26352d;font-size:13px;font-weight:600;box-shadow:0 1px 2px #13231908}
+    .summary-badge .dot{width:8px;height:8px;flex:0 0 8px}
+    .status-exports{margin-top:12px}.status-exports-label{font-size:11px;color:#738078}
+    .mobile-tabs{background:#fff}.tabs-list{background:#f0f3f1}.tab{color:#647168}.tab[data-active=true]{background:#fff;color:#1d3025;box-shadow:0 1px 3px #14251c20}
+    .board-wrap{padding:20px 32px 32px}
+    .board{gap:14px}
+    .lane{min-height:calc(100vh - 260px);padding:14px;border-radius:13px;border-color:#e2e8e4;background:#f1f4f2}
+    .lane-head{align-items:flex-start;margin-bottom:12px;padding:2px 2px 8px}
+    .lane-heading-copy{display:grid;gap:3px}.lane-title{font-size:13px;color:#25352b}
+    .lane-description{font-size:11px;color:#79857e}
+    .count{padding:2px 8px;border-radius:999px;background:#fff;color:#59675e;font-size:11px}
+    .lane-list{display:grid;gap:9px}
+    .lead-card{padding:14px;border-color:#e4e9e5;border-radius:11px;background:#fff;color:#17211d;box-shadow:0 1px 2px #1024180a;cursor:pointer}
+    .lead-card:hover{border-color:#c9d9cf;background:#fff;box-shadow:0 6px 18px #1024180d;transform:translateY(-1px)}
+    .lead-card.is-selected{border-color:#56a879;box-shadow:0 0 0 2px #56a87924}
+    .lead-name{color:#1a2b21;font-size:14px}.lead-business{color:#758078}
+    .badge{margin-top:8px;border-radius:999px;font-size:10px}
+    .badge-qualified{background:#e9f5ed;color:#18734a;border-color:#d8ebdf}
+    .badge-pending{background:#fbf3e4;color:#996516;border-color:#f2e5c8}
+    .badge-rejected{background:#faeceb;color:#a83e3e;border-color:#f0d8d6}
+    .lead-meta{border-color:#edf0ee;color:#718078}
+    .card-details{min-height:30px;border-color:#dfe6e1;border-radius:7px;background:#fff;color:#3d4e43;font-size:11px}
+    .card-details:hover{background:#f1f7f3;border-color:#c9d9cf}
+    .empty-lane{border-color:#dce4df;background:#fff;color:#79857e}
+    dialog{background:#fff;color:#17211d;border-color:#dfe6e1;box-shadow:0 24px 60px #14251c30}
+    dialog::backdrop{background:#14251c66;backdrop-filter:blur(3px)}
+    .dialog-head{border-color:#e8ede9}.dialog-title{color:#1a2b21;font-size:18px}.dialog-subtitle{color:#728078}
+    .icon-btn{color:#68766e}.detail-field,.message,.switch-row{background:#f7f9f7;border-color:#e3e9e5}
+    .detail-label,.section-title,.form-field label{color:#69766f}.detail-value{color:#26352d}.detail-value a{color:#16794c}
+    .form-field input,.form-field select,.form-field textarea{background:#fff;border-color:#dfe6e1;color:#17211d;border-radius:8px}
+    .switch input:checked{background:#16794c}.toast{background:#fff;color:#17211d;border-color:#dfe6e1;box-shadow:0 8px 28px #14251c20}
+    .toast-dot{background:#16834f}
+    @media(max-width:1050px){.sticky-header{padding-left:22px;padding-right:22px}.board-wrap{padding-left:22px;padding-right:22px}}
+    @media(max-width:760px){
+      .app{grid-template-columns:1fr}.sticky-header{padding:16px 16px 14px}.page-head{align-items:flex-start;flex-direction:column}.head-actions{width:100%;flex-wrap:wrap}
+      .pipeline-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:14px}.summary-badge{min-height:52px;padding:8px;font-size:10px;gap:5px}
+      .status-exports{gap:5px}.status-exports-label{width:100%}.board-wrap{padding:12px 14px 24px}.lane{background:#f1f4f2}
+      .mobile-tabs{padding:8px 14px}.lane-description{font-size:10px}h1{font-size:22px}
+    }
   </style>
 </head>
 <body>
@@ -236,7 +310,8 @@
         <div class="brand-mark">F</div>
         <div><div class="brand-name">Famebros Studio</div><div class="brand-subtitle">Sales desk</div></div>
       </div>
-      <div class="sidebar-heading"><span>New entries</span><span id="peopleCount" class="quiet-count">0</span></div>
+      <div class="sidebar-heading"><span>Needs a status</span><span id="peopleCount" class="quiet-count">0</span></div>
+      <p class="sidebar-help">New WhatsApp enquiries stay here until your team reviews and classifies them.</p>
       <div class="input-group">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <input id="search" class="search" type="search" placeholder="Search leads..." aria-label="Search leads">
@@ -250,23 +325,24 @@
       <div class="sticky-header">
         <header class="page-head">
           <div>
+            <p class="page-eyebrow">Sales workspace</p>
             <h1>Lead pipeline</h1>
-            <p class="intro">Review, call, then set a status</p>
+            <p class="intro">Review each enquiry, follow up, and keep your team’s next steps clear.</p>
             <div class="pipeline-summary" aria-live="polite">
               <span class="summary-badge"><span class="dot dot-qualified"></span><span id="qualifiedSummary">0 qualified</span></span>
               <span class="summary-badge"><span class="dot dot-pending"></span><span id="pendingSummary">0 non-confirmed</span></span>
               <span class="summary-badge"><span class="dot dot-rejected"></span><span id="rejectedSummary">0 non-qualified</span></span>
             </div>
             <nav class="status-exports" aria-label="Export leads by status">
-              <span class="status-exports-label">Export stage:</span>
+              <span class="status-exports-label">Download leads by status:</span>
               <a class="btn btn-outline btn-sm" href="/leads/export?status=Qualified">Qualified</a>
               <a class="btn btn-outline btn-sm" href="/leads/export?status=Non-confirmed">Non-confirmed</a>
               <a class="btn btn-outline btn-sm" href="/leads/export?status=Non-qualified">Non-qualified</a>
             </nav>
           </div>
           <div class="head-actions">
-            <button id="mobileNewBtn" class="btn btn-secondary btn-sm" type="button" style="display:none">New <span id="mobileNewCount">0</span></button>
-            <a id="exportCrm" class="btn btn-outline" href="/leads/export" download="famebros-crm.xlsx" aria-label="Export all CRM leads and conversation history to Excel">Export CRM</a>
+            <button id="mobileNewBtn" class="btn btn-secondary btn-sm" type="button" style="display:none">Review new <span id="mobileNewCount">0</span></button>
+            <a id="exportCrm" class="btn btn-outline" href="/leads/export" download="famebros-crm.xlsx" aria-label="Export all CRM leads and conversation history to Excel">Download full CRM</a>
             <button id="refresh" class="btn btn-secondary" type="button"><span id="refreshText">Refresh</span></button>
           </div>
         </header>
@@ -284,15 +360,15 @@
       <div class="board-wrap">
         <section id="board" class="board" aria-label="Lead status board">
           <section class="lane" data-status="Qualified" aria-label="Qualified leads">
-            <div class="lane-head"><div class="lane-title"><span class="dot dot-qualified"></span><span>Qualified</span></div><span class="count">0 qualified</span></div>
+            <div class="lane-head"><div class="lane-heading-copy"><div class="lane-title"><span class="dot dot-qualified"></span><span>Qualified</span></div><span class="lane-description">Good fit — prioritize follow-up</span></div><span class="count">0</span></div>
             <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
           </section>
           <section class="lane" data-status="Non-confirmed" aria-label="Non-confirmed leads">
-            <div class="lane-head"><div class="lane-title"><span class="dot dot-pending"></span><span>Non-confirmed</span></div><span class="count">0 non-confirmed</span></div>
+            <div class="lane-head"><div class="lane-heading-copy"><div class="lane-title"><span class="dot dot-pending"></span><span>Non-confirmed</span></div><span class="lane-description">Still need to confirm details</span></div><span class="count">0</span></div>
             <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
           </section>
           <section class="lane" data-status="Non-qualified" aria-label="Non-qualified leads">
-            <div class="lane-head"><div class="lane-title"><span class="dot dot-rejected"></span><span>Non-qualified</span></div><span class="count">0 non-qualified</span></div>
+            <div class="lane-head"><div class="lane-heading-copy"><div class="lane-title"><span class="dot dot-rejected"></span><span>Non-qualified</span></div><span class="lane-description">Not a fit or not proceeding</span></div><span class="count">0</span></div>
             <div class="lane-list"><div class="empty-lane">No leads in this stage</div></div>
           </section>
         </section>
@@ -461,10 +537,13 @@
           const id=e.dataTransfer.getData('text/plain'); if(id) await updateStatus(id,status.name);
         });
         const head=document.createElement('div'); head.className='lane-head';
+        const headingCopy=document.createElement('div'); headingCopy.className='lane-heading-copy';
         const title=document.createElement('div'); title.className='lane-title';
         const dot=document.createElement('span'); dot.className=`dot dot-${status.tone}`; dot.style.width='8px'; dot.style.height='8px';
         title.append(dot, makeText('span','',status.name));
-        head.append(title, makeText('span','count',`${items.length} ${status.name.toLowerCase()}`));
+        const descriptions={Qualified:'Good fit — prioritize follow-up','Non-confirmed':'Still need to confirm details','Non-qualified':'Not a fit or not proceeding'};
+        headingCopy.append(title,makeText('span','lane-description',descriptions[status.name]));
+        head.append(headingCopy, makeText('span','count',String(items.length)));
         lane.append(head);
         const cards=document.createElement('div'); cards.className='lane-list';
         if(!items.length) cards.append(makeText('div','empty-lane','No leads in this stage'));
