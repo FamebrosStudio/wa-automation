@@ -67,6 +67,16 @@ function collection(db) {
   return db.collection('waAutomationLeads');
 }
 
+function removeUndefined(value) {
+  if (Array.isArray(value)) return value.map((item) => item === undefined ? null : removeUndefined(item));
+  if (value && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(Object.entries(value)
+      .filter(([, item]) => item !== undefined)
+      .map(([key, item]) => [key, removeUndefined(item)]));
+  }
+  return value;
+}
+
 async function loadAll() {
   const db = await database();
   if (!db) return null;
@@ -87,7 +97,7 @@ async function save(items) {
   const batch = db.batch();
   for (const item of items) {
     const id = Buffer.from(item.phone).toString('base64url');
-    batch.set(collection(db).doc(id), { ...item, updatedAt: new Date().toISOString() }, { merge: true });
+    batch.set(collection(db).doc(id), removeUndefined({ ...item, updatedAt: new Date().toISOString() }), { merge: true });
   }
   if (items.length) await batch.commit();
   return true;
@@ -100,7 +110,7 @@ async function saveLead(item) {
   if (!db) return false;
   const ref = collection(db).doc(recordId(item.phone));
   await db.runTransaction(async (transaction) => {
-    transaction.set(ref, { ...item, updatedAt: new Date().toISOString() }, { merge: true });
+    transaction.set(ref, removeUndefined({ ...item, updatedAt: new Date().toISOString() }), { merge: true });
   });
   return true;
 }
@@ -220,4 +230,4 @@ async function hasPriorInboxMessage(phone, messageId) {
   return snapshot.docs.some((doc) => doc.id !== currentId);
 }
 
-module.exports = { isConfigured, database, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, archiveIncoming, hasPriorInboxMessage, acquirePhoneLease, hasProcessedMessage, markMessageProcessed };
+module.exports = { isConfigured, database, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, archiveIncoming, hasPriorInboxMessage, acquirePhoneLease, hasProcessedMessage, markMessageProcessed, removeUndefined };

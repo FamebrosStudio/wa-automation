@@ -56,12 +56,23 @@ test('only newly enrolled contacts and their active flows receive automation', a
 
     const socialPhone = '919900001235';
     await handleIncoming({ id: 'social-hello', type: 'text', text: { body: 'hi' } }, socialPhone);
+    const beforeSocialSelection = sent.length;
     await handleIncoming({ id: 'social-select', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_social' } } }, socialPhone);
+    assert.equal(sent.length, beforeSocialSelection + 1, 'a prompt with choices is sent as one interactive message');
     const businessOptionMenu = sent.filter((item) => item.type === 'list').at(-1).body;
+    assert.match(businessOptionMenu.body, /Please tap the option below/);
     assert.deepEqual(businessOptionMenu.sections[0].rows.map((row) => row.title), [
       '1 I own a business', '2 Creator / influencer', '3 Starting a business',
     ]);
     assert.ok(businessOptionMenu.sections[0].rows.every((row) => row.description === undefined));
+
+    await handleIncoming({ id: 'social-audience', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_businessOwner_0' } } }, socialPhone);
+    await handleIncoming({ id: 'social-name', type: 'text', text: { body: 'Priya' } }, socialPhone);
+    const beforeCategory = sent.length;
+    await handleIncoming({ id: 'social-category', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'flow_category_4' } } }, socialPhone);
+    assert.equal(sent.length, beforeCategory + 1, 'category question and choices are delivered in one message');
+    await handleIncoming({ id: 'social-instagram', type: 'text', text: { body: 'https://www.instagram.com/famebroscollab/' } }, socialPhone);
+    assert.match(sent.at(-1).body, /received your business details/i, 'a valid Instagram profile link completes the flow and receives a reply');
 
     const websitePhone = '919900001236';
     await handleIncoming({ id: 'website-hello', type: 'text', text: { body: 'hi' } }, websitePhone);

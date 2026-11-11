@@ -29,8 +29,8 @@ async function startService(to, id) {
   const firstStep = flow.startServiceFlow(to, serviceKey);
   if (!firstStep) return sendMenu(to);
   leads.updateLead(to, { service: flow.SERVICE_FLOWS[serviceKey].service });
-  await whatsapp.text(to, firstStep.intro);
-  if (firstStep.options?.length) await sendFlowChoices(to, firstStep.step, firstStep.options);
+  if (firstStep.options?.length) await sendFlowChoices(to, firstStep.step, firstStep.options, firstStep.intro);
+  else await whatsapp.text(to, firstStep.intro);
 }
 
 async function sendReply(to, id) {
@@ -104,8 +104,8 @@ async function handleFlowText(from, text) {
   }
   leads.addMessage(from, 'assistant', result.reply);
   await persistProgress();
-  await whatsapp.text(from, result.reply);
-  if (result.options?.length) await sendFlowChoices(from, result.step, result.options);
+  if (result.options?.length) await sendFlowChoices(from, result.step, result.options, result.reply);
+  else await whatsapp.text(from, result.reply);
   if (result.cancelled) {
     await whatsapp.buttons(from, { body: 'What would you like to do next?', buttons: [
       { id: 'menu', title: 'Main Menu' }, { id: 'contact', title: 'Book a Call' }, { id: 'human', title: 'Talk to Human' },
@@ -114,7 +114,7 @@ async function handleFlowText(from, text) {
   return true;
 }
 
-async function sendFlowChoices(to, step, options) {
+async function sendFlowChoices(to, step, options, prompt = 'Tap an option to continue') {
   const shortLabels = {
     "I'm a creator/influencer": 'Creator / influencer',
     "I'm starting a new business": 'Starting a business',
@@ -126,7 +126,7 @@ async function sendFlowChoices(to, step, options) {
     'Brand Promotional Reel': 'Brand promo reel',
   };
   await whatsapp.list(to, {
-    body: 'Tap an option to continue', button: 'Choose',
+    body: prompt, button: 'Choose',
     sections: [{ title: 'Options', rows: options.map((text, index) => ({
         id: `flow_${step}_${index}`,
         title: `${options.length > 1 ? `${index + 1} ` : ''}${shortLabels[text] || text}`.slice(0, 24),

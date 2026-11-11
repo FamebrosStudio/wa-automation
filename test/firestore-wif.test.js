@@ -62,3 +62,14 @@ test('Firestore can initialize and fetch a lead using Vercel WIF without a JSON 
     }
   }
 });
+
+test('Firestore writes omit undefined nested lead fields while retaining valid values', () => {
+  const { removeUndefined } = require('../src/services/firestore');
+  assert.deepEqual(removeUndefined({
+    lead: { instagram: 'https://www.instagram.com/famebroscollab/', location: undefined, name: 'Priya' },
+    crm: { owner: undefined, tags: ['social', undefined] },
+  }), {
+    lead: { instagram: 'https://www.instagram.com/famebroscollab/', name: 'Priya' },
+    crm: { tags: ['social', null] },
+  });
+});
