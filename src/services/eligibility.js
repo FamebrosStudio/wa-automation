@@ -16,6 +16,9 @@ function eligibility(record) {
   const crm = record?.crm || {};
   if (!lead) return { allowed: false, reason: 'unverified-contact' };
   if (crm.optedOut || lead.optedOut) return { allowed: false, reason: 'paused-or-opted-out' };
+  // A human-authored reply always ends automation, including on the internal
+  // test recipient; the test bypass must not override a real takeover.
+  if (crm.humanTakeover || lead.humanRequested) return { allowed: false, reason: 'paused-or-opted-out' };
   // This one explicitly approved test recipient bypasses normal CRM restrictions.
   if (isAlwaysAutomatedTestNumber(record?.phone || lead.phone)) return { allowed: true, reason: 'always-automated-test-number' };
   // Permanent suppression checks apply to all other recipients, including the

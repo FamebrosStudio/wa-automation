@@ -136,7 +136,7 @@ credentials, storage remains in-memory and is not durable. The Basic-Auth-
 protected dashboard lists all enquiries in Qualified, Non-confirmed, and
 Non-qualified stages. It includes service answers and conversation history,
 internal notes, salesperson/team assignment, and explicit status saves. New
-leads start as Non-confirmed; phone numbers appear only in authenticated details.
+leads start as Non-confirmed; phone numbers are included in the authenticated lead list only when no client name is known, and are available in authenticated details.
 The dashboard uses a searchable people rail, draggable status lanes, and a
 double-click details dialog.
 

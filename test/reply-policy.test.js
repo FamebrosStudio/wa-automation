@@ -91,12 +91,17 @@ test('only newly enrolled contacts and their active flows receive automation', a
     assert.equal(sent.length, beforeQualifiedMessage, 'qualified contacts must never receive bot replies');
 
     const testPhone = '+91 98925 06314';
-    leads.updateLead(testPhone, { status: 'Qualified', humanRequested: true, automationEligible: true, automationEnrolledAt: new Date().toISOString() });
+    leads.updateLead(testPhone, { status: 'Qualified', automationEligible: true, automationEnrolledAt: new Date().toISOString() });
     process.env.BOT_ENABLED = 'false';
     const beforeTestPhone = sent.length;
     await handleIncoming({ id: 'test-recipient-1', type: 'text', text: { body: 'hi' } }, testPhone);
     assert.ok(sent.length > beforeTestPhone, 'the enrolled designated test recipient can test replies while global automation is off');
     process.env.BOT_ENABLED = 'true';
+    leads.updateLead(testPhone, { humanRequested: true, crm: { humanTakeover: true, botPaused: true } });
+    const beforeHumanTakeover = sent.length;
+    const afterHuman = await handleIncoming({ id: 'test-recipient-after-human', type: 'text', text: { body: 'hi again' } }, testPhone);
+    assert.equal(afterHuman.reason, 'human-takeover');
+    assert.equal(sent.length, beforeHumanTakeover, 'human takeover must silence the test recipient too');
 
     const beforeBlocked = sent.length;
     const blocked = await handleIncoming({ id: 'blocked-number', type: 'text', text: { body: 'hello' } }, '+91 98923 28946');

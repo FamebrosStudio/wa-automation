@@ -410,6 +410,14 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'opted-out' };
       }
+      const humanHasTakenOver = Boolean(
+        knownLead?.humanRequested || knownLead?.crm?.humanTakeover || knownLead?.crm?.botPaused ||
+        record?.crm?.humanTakeover || record?.crm?.botPaused
+      );
+      if (humanHasTakenOver) {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'human-takeover' };
+      }
       if (!testRecipient && knownLead?.status === 'Qualified') {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'qualified-lead' };

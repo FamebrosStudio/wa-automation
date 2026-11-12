@@ -18,6 +18,7 @@ test('CRM export is an authenticated Excel workbook with lead and conversation s
   leads.addMessage(phone, 'user', 'Hi, I need social media help');
   leads.updateLead('919876543211', { name: 'Qualified Lead', status: 'Qualified' });
   leads.updateLead('919876543212', { name: 'Non-qualified Lead', status: 'Non-qualified' });
+  leads.updateLead('919876543213', { business: 'Unnamed business' });
 
   const realLoad = Module._load;
   Module._load = function (request, parent, isMain) {
@@ -37,9 +38,14 @@ test('CRM export is an authenticated Excel workbook with lead and conversation s
     server = app.listen(0);
     const address = server.address();
     const root = `http://127.0.0.1:${address.port}`;
+    const auth = `Basic ${Buffer.from('export-test:export-password').toString('base64')}`;
+    const list = await fetch(`${root}/leads`, { headers: { authorization: auth } });
+    assert.equal(list.status, 200);
+    const listedLeads = (await list.json()).leads;
+    assert.equal(listedLeads.find((lead) => lead.id === Buffer.from('919876543213').toString('base64url')).phone, '919876543213', 'nameless leads expose their number to the authenticated dashboard');
+    assert.equal(listedLeads.find((lead) => lead.id === Buffer.from(phone).toString('base64url')).phone, undefined, 'named leads keep their number hidden from the list');
     const denied = await fetch(`${root}/leads/export`);
     assert.equal(denied.status, 401);
-    const auth = `Basic ${Buffer.from('export-test:export-password').toString('base64')}`;
     const response = await fetch(`${root}/leads/export`, { headers: { authorization: auth } });
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /spreadsheetml\.sheet/);
@@ -49,7 +55,7 @@ test('CRM export is an authenticated Excel workbook with lead and conversation s
     await workbook.xlsx.load(Buffer.from(await response.arrayBuffer()));
     assert.equal(workbook.worksheets.length, 2);
     const leadsSheet = workbook.getWorksheet('Leads');
-    assert.equal(leadsSheet.rowCount, 4, 'full CRM export includes all three statuses');
+    assert.equal(leadsSheet.rowCount, 5, 'full CRM export includes all three statuses and the nameless lead');
     assert.equal(leadsSheet.getCell('B2').value, 'Priya Sharma');
     assert.equal(leadsSheet.getCell('E2').value, 'Food & Beverage');
     assert.equal(leadsSheet.getCell('K2').value, 'https://www.instagram.com/priyakitchen/');

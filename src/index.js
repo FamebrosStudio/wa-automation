@@ -266,7 +266,15 @@ app.get('/leads', dashboardAuth, async (req, res) => {
     leads: allLeads.slice().reverse().map((lead) => {
       const id = firestore.recordId(lead.phone);
       const crm = leadCrm.get(id) || localCrm.get(id) || {};
-      return { ...lead, id, tags: crm.tags || (lead.service ? [lead.service] : []), owner: crm.owner || lead.assignedTeam || '', phone: undefined };
+      return {
+        ...lead,
+        id,
+        tags: crm.tags || (lead.service ? [lead.service] : []),
+        owner: crm.owner || lead.assignedTeam || '',
+        // The authenticated dashboard can identify nameless enquiries by
+        // phone; keep phone out of list payloads once a client name is known.
+        phone: lead.name ? undefined : lead.phone,
+      };
     }),
   });
 });

@@ -10,6 +10,7 @@ test('contact exclusions override enrollment and all bot triggers', () => {
   assert.equal(eligibility(null).allowed, false);
   assert.equal(eligibility({ lead: { automationEligible: true, contactType: 'New Lead' } }).allowed, false, 'legacy eligibility flags do not enroll old contacts');
   assert.equal(eligibility({ lead: { optedOut: true }, phone: '919892506314' }).allowed, false, 'explicit test-number opt-outs still apply');
+  assert.equal(eligibility({ lead: { humanRequested: true }, phone: '919892506314' }).allowed, false, 'a human takeover overrides the test-number bypass');
   assert.equal(eligibility({ lead: { contactType: 'Existing Client', status: 'Qualified' }, phone: '+91 98925 06314' }).allowed, true, 'the designated test phone bypasses normal CRM restrictions');
   assert.equal(eligibility({ lead: { automationEnrolledAt: new Date().toISOString() }, phone: '+91 98923 28946' }).allowed, false, 'explicitly blocked contacts never become eligible');
   assert.equal(eligibility({ lead: { automationEligible: true }, phone: '919833066222' }).allowed, false, 'the new bypass applies only to the designated phone');

@@ -31,6 +31,10 @@ test('send boundary checks fresh CRM permissions for every message and global OF
     process.env.BOT_ENABLED = 'false';
     await whatsapp.text('+91 98925 06314', 'test-only message');
     assert.equal(calls, 2, 'the configured test number bypasses CRM and global automation gates');
+    process.env.BOT_ENABLED = 'true';
+    record = { phone: '919892506314', lead: { automationEnrolledAt: new Date().toISOString() }, crm: { humanTakeover: true } };
+    await assert.rejects(whatsapp.text('+91 98925 06314', 'must stay silent'), /suppressed/);
+    assert.equal(calls, 2, 'human takeover also silences the test number');
     await assert.rejects(whatsapp.forceText('+91 98923 28946', 'blocked'), /suppressed-number/);
     assert.equal(calls, 2, 'the explicit block also protects the force-send path');
   } finally {

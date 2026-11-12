@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
 
-test('human Business App echo pauses automation and duplicate echoes are idempotent', async () => {
+test('human Business App echo pauses automation even on the test number and is idempotent', async () => {
   const handlerPath = require.resolve('../src/handlers/messageHandler');
   const originalLoad = Module._load;
   const previousBotEnabled = process.env.BOT_ENABLED;
@@ -23,7 +23,7 @@ test('human Business App echo pauses automation and duplicate echoes are idempot
     return originalLoad.call(this, request, parent, isMain);
   };
   delete require.cache[handlerPath];
-  const phone = '919900009987';
+  const phone = '919892506314';
   try {
     const leads = require('../src/services/leads');
     const flow = require('../src/services/flow');
@@ -42,7 +42,8 @@ test('human Business App echo pauses automation and duplicate echoes are idempot
     assert.equal(leads.getHistory(phone)[0].id, echo.id);
 
     assert.deepEqual(await handleHumanEcho(echo, phone), { ignored: true, reason: 'duplicate-human-echo' });
-    await handleIncoming({ id: 'customer-after-human', type: 'text', text: { body: 'Thanks, can you share pricing?' } }, phone);
+    const followUp = await handleIncoming({ id: 'customer-after-human', type: 'text', text: { body: 'Thanks, can you share pricing?' } }, phone);
+    assert.equal(followUp.reason, 'human-takeover');
     assert.equal(sends.length, 0, 'do not send bot replies after a human response');
     assert.equal(leads.getHistory(phone).filter(message => message.id === echo.id).length, 1);
   } finally {

@@ -386,6 +386,9 @@
     .all-leads-list{display:grid;gap:8px;overflow:auto;padding:12px 20px 20px}
     .all-lead-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:#151a17;color:var(--foreground);text-align:left;cursor:pointer}
     .all-lead-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.all-lead-row span{min-width:0;color:var(--muted-foreground);font-size:12px;overflow-wrap:anywhere}
+    .all-leads-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 20px;border-top:1px solid var(--border);color:var(--muted-foreground);font-size:11px}
+    .all-leads-pagination[hidden]{display:none!important}
+    .all-leads-pagination .btn{min-height:36px}
     @media(max-width:760px){
       .mobile-topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
       .mobile-top-actions{display:flex;align-items:center;gap:6px}
@@ -434,6 +437,8 @@
       .all-leads-tools input{height:36px}
       .all-leads-tools input{grid-column:1/-1}
       .all-leads-list{flex:1;align-content:start;gap:6px;padding:8px 10px 16px;-webkit-overflow-scrolling:touch}
+      .all-leads-pagination{padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:#111512}
+      .all-leads-pagination .btn{min-height:40px}
       .all-lead-row{min-height:60px;padding:8px;gap:4px 8px}
       .all-lead-row .badge{margin:0;justify-self:end;align-self:center;padding:2px 7px;font-size:10px;white-space:nowrap}
       .all-lead-row strong{font-size:12px}
@@ -551,6 +556,11 @@
         <select id="allLeadsSort" aria-label="Sort leads"><option value="recent">Most recent</option><option value="oldest">Oldest first</option></select>
       </div>
       <div id="allLeadsList" class="all-leads-list" aria-live="polite"></div>
+      <footer id="allLeadsPagination" class="all-leads-pagination" hidden>
+        <button id="allLeadsPrevious" class="btn btn-secondary btn-sm" type="button">Previous</button>
+        <span id="allLeadsPageLabel" aria-live="polite">Page 1 of 1</span>
+        <button id="allLeadsNext" class="btn btn-secondary btn-sm" type="button">Next</button>
+      </footer>
     </div>
   </dialog>
 
@@ -589,6 +599,8 @@
     const sidebarEl = document.getElementById('sidebar');
     const allLeadsDialog = document.getElementById('allLeadsDialog');
     const allLeadsList = document.getElementById('allLeadsList');
+    const ALL_LEADS_PAGE_SIZE = 10;
+    let allLeadsPage = 1;
 
     // Mobile tabs
     document.getElementById('mobileTabs').addEventListener('click', (e) => {
@@ -651,9 +663,13 @@
       document.getElementById('mobileFilterToggle').setAttribute('aria-expanded','false');
     }
     ['allLeadsSearch','allLeadsStatus','allLeadsService','allLeadsOwner','allLeadsSort'].forEach(id => {
-      document.getElementById(id).addEventListener('input', renderAllLeads);
-      document.getElementById(id).addEventListener('change', renderAllLeads);
+      const input=document.getElementById(id);
+      const update=()=>{allLeadsPage=1;renderAllLeads();};
+      input.addEventListener('input', update);
+      input.addEventListener('change', update);
     });
+    document.getElementById('allLeadsPrevious').addEventListener('click',()=>{allLeadsPage=Math.max(1,allLeadsPage-1);renderAllLeads();});
+    document.getElementById('allLeadsNext').addEventListener('click',()=>{allLeadsPage+=1;renderAllLeads();});
 
     function load() {
       if (loadPromise) return loadPromise;
@@ -749,7 +765,7 @@
       return el;
     }
 
-    function displayName(lead) { return lead.name || lead.business || 'New enquiry'; }
+    function displayName(lead) { return lead.name || lead.phone || lead.business || 'New enquiry'; }
 
     function populateFilterOptions() {
       const sets = [
@@ -854,8 +870,16 @@
         const tb=new Date(b.firstSeen||b.createdAt||b.lastSeen||0).getTime()||0;
         return direction==='oldest'?ta-tb:tb-ta;
       });
+      const pageCount=Math.max(1,Math.ceil(rows.length/ALL_LEADS_PAGE_SIZE));
+      allLeadsPage=Math.min(allLeadsPage,pageCount);
+      const pagination=document.getElementById('allLeadsPagination');
+      pagination.hidden=rows.length<=ALL_LEADS_PAGE_SIZE;
+      document.getElementById('allLeadsPageLabel').textContent=`Page ${allLeadsPage} of ${pageCount} · ${rows.length} enquiries`;
+      document.getElementById('allLeadsPrevious').disabled=allLeadsPage<=1;
+      document.getElementById('allLeadsNext').disabled=allLeadsPage>=pageCount;
       if (!rows.length) { allLeadsList.replaceChildren(makeText('div','empty',leads.length?'No leads match these filters.':'No enquiries yet. New WhatsApp leads will appear here.')); return; }
-      allLeadsList.replaceChildren(...rows.map(lead=>{
+      const pageStart=(allLeadsPage-1)*ALL_LEADS_PAGE_SIZE;
+      allLeadsList.replaceChildren(...rows.slice(pageStart,pageStart+ALL_LEADS_PAGE_SIZE).map(lead=>{
         const button=document.createElement('button'); button.type='button'; button.className='all-lead-row';
         const heading=document.createElement('strong'); heading.textContent=displayName(lead);
         const badge=makeText('span',`badge badge-${STATUSES.find(item=>item.name===lead.status)?.tone||'pending'}`,lead.status||'Needs a status');
