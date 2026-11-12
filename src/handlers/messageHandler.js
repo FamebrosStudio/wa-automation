@@ -8,6 +8,7 @@ const { eligibility, hasFirstContactEnrollment, isAlwaysAutomatedTestNumber, isS
 const processed = new Set();
 const sessions = new Map();
 const phoneQueues = new Map();
+const AUTOMATION_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
 const MENU_ORDER = ['service_social', 'service_ads', 'service_photo', 'service_website', 'service_team'];
 const SERVICE_IDS = {
@@ -17,6 +18,12 @@ const SERVICE_IDS = {
 
 function cleanupProcessed() {
   if (processed.size > 5000) processed.clear();
+}
+
+function timestampMs(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
+  const parsed = Date.parse(value || '');
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 async function sendMenu(to) {
@@ -78,6 +85,7 @@ function leadResetForNewEnquiry(from) {
     welcomeSent: false,
     humanRequested: false,
     automationEligible: true,
+    automationExpiredAt: null,
   });
   flow.cancelFlow(from);
 }
@@ -370,6 +378,7 @@ async function handleIncoming(message, from) {
       }
       const body = message.type === 'text' ? (message.text?.body || '').trim() : '';
       const option = interactiveReplyId(message);
+      const isNewServiceSelection = message.type === 'interactive' && SERVICE_IDS[option] && option !== 'service_team';
       const optedOutAlready = Boolean(
         knownLead?.optedOut || knownLead?.crm?.optedOut || record?.lead?.optedOut || record?.crm?.optedOut
       );
@@ -377,29 +386,7 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'opted-out' };
       }
-      const isNewServiceSelection = message.type === 'interactive' && SERVICE_IDS[option] && option !== 'service_team';
-      // Human / call request detection runs before every other check — even for
-      // completed or previously-stored contacts — so it can never be masked.
-      const human = ['human', 'service_team', 'contact'].includes(option) || HUMAN_REQUEST_RE.test(body);
       const optedOut = /^(stop|unsubscribe|not interested|no thanks)$/i.test(body);
-      if (human) {
-        flow.cancelFlow(from);
-        const current = leads.snapshot(from)[0];
-        const alreadyAcked = current?.lead?.humanAckSent || record?.lead?.humanAckSent;
-        const crm = { ...(record?.crm || {}), botPaused: true, humanTakeover: true };
-        leads.updateLead(from, { humanRequested: true, conversationStatus: 'HANDOVER', humanAckSent: true }, );
-        // preserve crm
-        const snap = leads.snapshot(from)[0];
-        if (snap) snap.lead.crm = crm;
-        const handover = { status: 'Unassigned', requestedAt: new Date().toISOString(), callback: true };
-        if (firestoreEnabled && snap) await firestore.saveLead({ ...snap, activeFlow: null, crm, handover });
-        if (!alreadyAcked) {
-          try { await whatsapp.forceText(from, "Thanks for reaching out. I've passed this to our sales team — they'll call you back shortly."); } catch (_) {}
-          leads.addMessage(from, 'assistant', 'Thanks for reaching out. I\'ve passed this to our sales team — they\'ll call you back shortly.');
-        }
-        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
-        return { ignored: true, reason: 'human-handover' };
-      }
       if (optedOut) {
         flow.cancelFlow(from);
         const current = leads.snapshot(from)[0];
@@ -418,13 +405,56 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'human-takeover' };
       }
+      const latestInbound = [...(record?.history || []), ...(leads.getHistory(from) || [])]
+        .filter(item => item.role === 'user')
+        .reduce((latest, item) => Math.max(latest, timestampMs(item.ts) || 0), 0);
+      const activityAt = [knownLead?.lastInboundAt, record?.lead?.lastInboundAt, latestInbound,
+        knownLead?.lastSeen, record?.lead?.lastSeen, knownLead?.firstSeen, record?.lead?.firstSeen,
+        knownLead?.automationEnrolledAt, record?.lead?.automationEnrolledAt]
+        .reduce((latest, value) => Math.max(latest, timestampMs(value) || 0), 0);
+      const inactiveConversation = previouslyStored && !testRecipient &&
+        (!activityAt || Date.now() - activityAt > AUTOMATION_IDLE_TIMEOUT_MS);
+      if (inactiveConversation && !isNewServiceSelection) {
+        flow.cancelFlow(from);
+        const expiredAt = knownLead?.automationExpiredAt || new Date().toISOString();
+        leads.updateLead(from, { conversationStatus: 'EXPIRED', automationExpiredAt: expiredAt });
+        const current = leads.snapshot(from)[0];
+        if (firestoreEnabled && current) {
+          await firestore.saveLead({ ...current, activeFlow: null, crm: record?.crm || current.lead.crm || {} });
+        }
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'inactive-contact' };
+      }
+      if (inactiveConversation && isNewServiceSelection) leadResetForNewEnquiry(from);
+      leads.updateLead(from, { lastInboundAt: new Date().toISOString(), automationExpiredAt: null });
+
+      // Human requests in active conversations hand over once; aged conversations
+      // have already been silenced by the inactivity gate above.
+      const human = ['human', 'service_team', 'contact'].includes(option) || HUMAN_REQUEST_RE.test(body);
+      if (human) {
+        flow.cancelFlow(from);
+        const current = leads.snapshot(from)[0];
+        const alreadyAcked = current?.lead?.humanAckSent || record?.lead?.humanAckSent;
+        const crm = { ...(record?.crm || {}), botPaused: true, humanTakeover: true };
+        leads.updateLead(from, { humanRequested: true, conversationStatus: 'HANDOVER', humanAckSent: true });
+        const snap = leads.snapshot(from)[0];
+        if (snap) snap.lead.crm = crm;
+        const handover = { status: 'Unassigned', requestedAt: new Date().toISOString(), callback: true };
+        if (firestoreEnabled && snap) await firestore.saveLead({ ...snap, activeFlow: null, crm, handover });
+        if (!alreadyAcked) {
+          try { await whatsapp.forceText(from, "Thanks for reaching out. I've passed this to our sales team — they'll call you back shortly."); } catch (_) {}
+          leads.addMessage(from, 'assistant', 'Thanks for reaching out. I\'ve passed this to our sales team — they\'ll call you back shortly.');
+        }
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'human-handover' };
+      }
       if (!testRecipient && knownLead?.status === 'Qualified') {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'qualified-lead' };
       }
       // Completed conversations stay locked. Only an explicit new-service tap
       // may start a controlled new enquiry; everything else is silent.
-      if (!testRecipient && (knownLead?.conversationStatus === 'COMPLETED' || knownLead?.completionMessageSent === true)) {
+      if (!testRecipient && (knownLead?.conversationStatus === 'COMPLETED' || knownLead?.conversationStatus === 'EXPIRED' || knownLead?.completionMessageSent === true)) {
         if (!isNewServiceSelection) {
           // Notify salesperson for genuinely important post-completion requests,
           // but never send an automated customer reply.

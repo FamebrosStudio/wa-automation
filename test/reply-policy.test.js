@@ -54,6 +54,28 @@ test('only newly enrolled contacts and their active flows receive automation', a
     await handleIncoming({ id: 'flow-1', type: 'text', text: { body: 'Business Website' } }, newPhone);
     assert.ok(sent.length > beforeFlowReply, 'newly enrolled contacts should receive replies while continuing an active flow');
 
+    const returningPhone = '919900001237';
+    const oldActivity = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    leads.updateLead(returningPhone, {
+      contactType: 'New Lead', automationEligible: true,
+      automationEnrolledAt: oldActivity, lastInboundAt: oldActivity, lastSeen: oldActivity,
+      firstSeen: oldActivity, status: 'Non-confirmed',
+    });
+    flow.startServiceFlow(returningPhone, 'website');
+    const beforeReturning = sent.length;
+    const returningResult = await handleIncoming({ id: 'returning-after-idle', type: 'text', text: { body: 'hello again' } }, returningPhone);
+    assert.equal(returningResult.reason, 'inactive-contact');
+    assert.equal(sent.length, beforeReturning, 'previously enrolled contacts are silent after 24 hours without an inbound message');
+    assert.equal(flow.hasActiveFlow(returningPhone), false, 'an expired flow is cancelled instead of resumed');
+    assert.equal(leads.getLead(returningPhone).conversationStatus, 'EXPIRED');
+    const agedHumanRequest = await handleIncoming({ id: 'returning-human-request', type: 'text', text: { body: 'please call me' } }, returningPhone);
+    assert.equal(agedHumanRequest.reason, 'inactive-contact');
+    assert.equal(sent.length, beforeReturning, 'expired contacts do not receive automated handover acknowledgements either');
+    const beforeExplicitRestart = sent.length;
+    await handleIncoming({ id: 'returning-new-service', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_website' } } }, returningPhone);
+    assert.ok(sent.length > beforeExplicitRestart, 'an eligible lead can start again only by explicitly choosing a service');
+    assert.equal(flow.hasActiveFlow(returningPhone), true);
+
     const socialPhone = '919900001235';
     await handleIncoming({ id: 'social-hello', type: 'text', text: { body: 'hi' } }, socialPhone);
     const beforeSocialSelection = sent.length;

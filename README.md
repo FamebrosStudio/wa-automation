@@ -153,6 +153,12 @@ repeated side effect on retry. Configure Firestore indexes/permissions and
 monitor lease/storage errors before enabling this path in production; this
 change has not been validated against a live Firebase project.
 
+Automation expires after 24 hours without a customer inbound message. Returning
+contacts with expired or legacy activity are not resumed from stale flows; a
+new service selection is required to start another eligible enquiry. Existing
+client, past-client, human-takeover, opt-out, and other suppression rules still
+take precedence.
+
 Follow-up automation remains disabled: `/api/cron` returns 503 and no Vercel
 cron is scheduled. It must not be enabled until an approved WhatsApp template,
 template language/name, due-time/opt-out policy, and idempotent delivery

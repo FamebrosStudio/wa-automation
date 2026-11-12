@@ -26,7 +26,7 @@ function eligibility(record) {
   if (BLOCKED_TYPES.has(crm.contactType || lead.contactType)) return { allowed: false, reason: 'excluded-contact-type' };
   if (['Qualified', 'Won', 'Lost', 'Existing Client', 'Non-qualified'].includes(lead.status)) return { allowed: false, reason: 'suppressed-status' };
   if (crm.botPaused || crm.humanTakeover || crm.optedOut || lead.optedOut || lead.humanRequested) return { allowed: false, reason: 'paused-or-opted-out' };
-  if (lead.conversationStatus === 'COMPLETED' || lead.completionMessageSent === true) return { allowed: false, reason: 'completed-flow' };
+  if (lead.conversationStatus === 'COMPLETED' || lead.conversationStatus === 'EXPIRED' || lead.completionMessageSent === true) return { allowed: false, reason: 'completed-flow' };
   // Only records created by this bot's verified first-contact enrollment may
   // receive automation. Legacy records (even ones with stale eligibility flags)
   // and manually whitelisted test numbers without this marker fail closed.

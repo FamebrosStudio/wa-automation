@@ -5,6 +5,7 @@ test('contact exclusions override enrollment and all bot triggers', () => {
   const enrolled = { lead: { automationEligible: true, automationEnrolledAt: new Date().toISOString() } };
   for (const contactType of BLOCKED_TYPES) assert.equal(eligibility({ ...enrolled, crm: { contactType } }).allowed, false);
   for (const status of ['Qualified', 'Won', 'Lost', 'Existing Client']) assert.equal(eligibility({ ...enrolled, lead: { ...enrolled.lead, status } }).allowed, false);
+  assert.equal(eligibility({ ...enrolled, lead: { ...enrolled.lead, conversationStatus: 'EXPIRED' } }).allowed, false, 'expired conversations cannot pass the outbound send gate');
   for (const flag of ['botPaused', 'humanTakeover', 'optedOut']) assert.equal(eligibility({ ...enrolled, crm: { [flag]: true } }).allowed, false);
   assert.equal(eligibility({ lead: { welcomeSent: true } }).allowed, false);
   assert.equal(eligibility(null).allowed, false);
