@@ -1,8 +1,12 @@
 const axios = require('axios');
+const https = require('node:https');
 const config = require('../config');
 const { eligibility, isAlwaysAutomatedTestNumber, isSuppressedNumber } = require('./eligibility');
 
 const BASE = `https://graph.facebook.com/${config.graphVersion}`;
+// Reuse TLS connections across warm webhook invocations to avoid repeated
+// DNS/TCP/TLS setup for every message sent through the Graph API.
+const graphAgent = new https.Agent({ keepAlive: true, maxSockets: 50 });
 
 async function send(payload, options = {}) {
   if (isSuppressedNumber(payload.to)) throw new Error('Automated send suppressed: suppressed-number');
@@ -33,6 +37,7 @@ async function send(payload, options = {}) {
   try {
     const res = await axios.post(url, payload, {
       timeout: 15000,
+      httpsAgent: graphAgent,
       headers: {
         Authorization: `Bearer ${config.whatsappToken}`,
         'Content-Type': 'application/json; charset=utf-8',

@@ -92,6 +92,8 @@ Save. Restart the server (kill node, run `npm run dev`).
 
 5\. Under \*\*Webhook fields\*\*, subscribe to \*\*messages\*\* (toggle on).
 
+6\. If this WhatsApp Business number is onboarded for Cloud API/Business App Coexistence, also subscribe to `smb_message_echoes`. Those echoes identify messages a salesperson sends from the Business App; the bot records them as human messages, pauses automation for that contact, and does not send an automated reply. Standard Cloud API `statuses` contain delivery state only, not message text, and are never treated as human replies. Without the echo subscription (and Coexistence), the server cannot detect manual Business App messages.
+
 
 
 \## Part E — Test
@@ -171,4 +173,3 @@ Edit `src/data/knowledge.js` (packages, prices, FAQ). Restart not required for c
 \- `src/data/knowledge.js` — content
 
 \- `.env` — secrets
-

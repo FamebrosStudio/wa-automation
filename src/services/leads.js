@@ -38,10 +38,10 @@ function getLead(phone) {
   return leads.get(phone);
 }
 
-function addMessage(phone, role, content) {
+function addMessage(phone, role, content, messageId) {
   if (!conversations.has(phone)) conversations.set(phone, []);
   const history = conversations.get(phone);
-  history.push({ role, content, ts: Date.now() });
+  history.push({ role, content, ts: Date.now(), ...(messageId ? { id: messageId } : {}) });
   if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
 }
 

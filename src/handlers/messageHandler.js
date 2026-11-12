@@ -466,4 +466,55 @@ async function handleIncoming(message, from) {
   }
 }
 
-module.exports = { handleIncoming, sendMenu, sendReply };
+// WhatsApp Business App echoes are human-authored outbound messages. They are
+// not customer messages and must never be sent through the auto-reply flow.
+async function handleHumanEcho(message, to) {
+  if (!to || !message?.id) return { ignored: true, reason: 'echo-recipient-unavailable' };
+  const previous = phoneQueues.get(to) || Promise.resolve();
+  const task = previous.catch(() => {}).then(async () => {
+    if (processed.has(message.id)) return { ignored: true, reason: 'duplicate-human-echo' };
+    let releaseLease = null;
+    const durable = firestore.isConfigured();
+    try {
+      if (durable) {
+        releaseLease = await firestore.acquirePhoneLease(to);
+        if (await firestore.hasProcessedMessage(message.id)) {
+          processed.add(message.id);
+          return { ignored: true, reason: 'duplicate-human-echo' };
+        }
+      }
+      const record = durable ? await firestore.getLeadByPhone(to) : null;
+      if (record) {
+        leads.restoreOne(record);
+        flow.restoreFlow(to, record.activeFlow);
+      }
+      const existing = leads.snapshot(to)[0];
+      const crm = { ...(record?.crm || existing?.lead?.crm || {}), botPaused: true, humanTakeover: true };
+      flow.cancelFlow(to);
+      leads.updateLead(to, { humanRequested: true, conversationStatus: 'HANDOVER', humanAckSent: true, crm });
+
+      const type = message.type || 'message';
+      const content = message.text?.body || message.image?.caption || message.video?.caption || message.document?.caption || `[Human sent ${type}]`;
+      const history = leads.getHistory(to);
+      if (!history.some(item => item.id === message.id)) leads.addMessage(to, 'human', content, message.id);
+      const current = leads.snapshot(to)[0];
+      if (durable && current) {
+        await firestore.saveLead({ ...current, activeFlow: null, crm });
+        await firestore.markMessageProcessed(message.id, to);
+      }
+      processed.add(message.id);
+      cleanupProcessed();
+      return { humanTakeover: true };
+    } finally {
+      if (releaseLease) await releaseLease();
+    }
+  });
+  phoneQueues.set(to, task);
+  try {
+    return await task;
+  } finally {
+    if (phoneQueues.get(to) === task) phoneQueues.delete(to);
+  }
+}
+
+module.exports = { handleIncoming, handleHumanEcho, sendMenu, sendReply };

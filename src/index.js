@@ -4,7 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const ExcelJS = require('exceljs');
 const config = require('./config');
-const { handleIncoming } = require('./handlers/messageHandler');
+const { handleIncoming, handleHumanEcho } = require('./handlers/messageHandler');
 const leads = require('./services/leads');
 const firestore = require('./services/firestore');
 const { isAlwaysAutomatedTestNumber } = require('./services/eligibility');
@@ -42,19 +42,34 @@ app.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
     if (body.object !== 'whatsapp_business_account') return res.sendStatus(200);
+    const phoneJobs = new Map();
+    const enqueueForPhone = (phone, operation) => {
+      const previous = phoneJobs.get(phone) || Promise.resolve();
+      const task = previous.then(operation);
+      phoneJobs.set(phone, task);
+    };
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
         const value = change.value || {};
-        const messages = value.messages || [];
-        for (const msg of messages) {
+        for (const msg of value.messages || []) {
           const from = msg.from;
           if (!from) continue;
           if (msg.type === 'unknown') continue;
           console.log(`[webhook] incoming from ${from} type=${msg.type}`);
-          await handleIncoming(msg, from);
+          enqueueForPhone(from, () => handleIncoming(msg, from));
+        }
+        // Cloud API sends statuses for bot-authored messages; they have no
+        // contents and are intentionally not treated as human replies. In
+        // Coexistence, message_echoes contains content sent from the Business
+        // App and is the authoritative signal for a human takeover.
+        for (const echo of value.message_echoes || []) {
+          const to = String(echo.to || '').replace(/\D/g, '');
+          if (!to) continue;
+          enqueueForPhone(to, () => handleHumanEcho(echo, to));
         }
       }
     }
+    await Promise.all(phoneJobs.values());
     return res.sendStatus(200);
   } catch (err) {
     console.error('[webhook] processing error:', err.message);
