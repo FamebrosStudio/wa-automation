@@ -7,7 +7,7 @@ const config = require('./config');
 const { handleIncoming, handleHumanEcho } = require('./handlers/messageHandler');
 const leads = require('./services/leads');
 const firestore = require('./services/firestore');
-const { isAlwaysAutomatedTestNumber } = require('./services/eligibility');
+const { isAlwaysAutomatedTestNumber, canonicalPhone } = require('./services/eligibility');
 const localCrm = new Map();
 
 const app = express();
@@ -44,16 +44,19 @@ app.post('/webhook', async (req, res) => {
     if (body.object !== 'whatsapp_business_account') return res.sendStatus(200);
     const phoneJobs = new Map();
     const enqueueForPhone = (phone, operation) => {
-      const previous = phoneJobs.get(phone) || Promise.resolve();
+      const key = canonicalPhone(phone) || phone;
+      const previous = phoneJobs.get(key) || Promise.resolve();
       const task = previous.then(operation);
-      phoneJobs.set(phone, task);
+      phoneJobs.set(key, task);
     };
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
         const value = change.value || {};
+        const businessPhone = canonicalPhone(value.metadata?.display_phone_number);
         for (const msg of value.messages || []) {
-          const from = msg.from;
+          const from = canonicalPhone(msg.from);
           if (!from) continue;
+          if (businessPhone && from === businessPhone) continue;
           if (msg.type === 'unknown') continue;
           console.log(`[webhook] incoming from ${from} type=${msg.type}`);
           enqueueForPhone(from, () => handleIncoming(msg, from));
@@ -63,7 +66,7 @@ app.post('/webhook', async (req, res) => {
         // Coexistence, message_echoes contains content sent from the Business
         // App and is the authoritative signal for a human takeover.
         for (const echo of value.message_echoes || []) {
-          const to = String(echo.to || '').replace(/\D/g, '');
+          const to = canonicalPhone(echo.to || echo.recipient_id || '');
           if (!to) continue;
           enqueueForPhone(to, () => handleHumanEcho(echo, to));
         }
@@ -217,10 +220,16 @@ app.patch('/leads/:id', dashboardAuth, async (req, res) => {
   if (tags !== undefined && (!Array.isArray(tags) || tags.length > 30 || tags.some((tag) => typeof tag !== 'string' || tag.length > 40))) {
     return res.status(400).json({ error: 'Tags must be up to 30 text labels (40 characters each)' });
   }
+  let releaseLease = null;
   try {
     let record;
-    if (firestore.isConfigured()) record = await firestore.getLead(req.params.id);
-    else record = leads.snapshot().find((item) => firestore.recordId(item.phone) === req.params.id);
+    if (firestore.isConfigured()) {
+      record = await firestore.getLead(req.params.id);
+      if (record?.phone && typeof firestore.acquirePhoneLease === 'function') {
+        releaseLease = await firestore.acquirePhoneLease(record.phone);
+        record = await firestore.getLead(req.params.id);
+      }
+    } else record = leads.snapshot().find((item) => firestore.recordId(item.phone) === req.params.id);
     if (!record) return res.sendStatus(404);
     const crm = { ...(record.crm || {}) };
     if (contactType !== undefined) crm.contactType = contactType;
@@ -230,7 +239,12 @@ app.patch('/leads/:id', dashboardAuth, async (req, res) => {
     if (owner !== undefined) crm.owner = owner.trim();
     if (tags !== undefined) crm.tags = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
     if (status !== undefined) record.lead.status = status || null;
-    if (firestore.isConfigured()) await firestore.save([{ ...record, crm }]);
+    if (crm.botPaused === false && crm.humanTakeover === false) {
+      record.lead.humanRequested = false;
+      if (record.lead.conversationStatus === 'HANDOVER') record.lead.conversationStatus = null;
+    }
+    const activeFlow = (crm.botPaused || crm.humanTakeover) ? null : record.activeFlow;
+    if (firestore.isConfigured()) await firestore.save([{ ...record, crm, activeFlow }]);
     else {
       record.crm = crm;
       localCrm.set(req.params.id, crm);
@@ -240,6 +254,8 @@ app.patch('/leads/:id', dashboardAuth, async (req, res) => {
   } catch (error) {
     console.error('[firestore] lead update failed:', error.message);
     return res.status(503).json({ error: 'Lead storage unavailable' });
+  } finally {
+    if (releaseLease) await releaseLease().catch(() => {});
   }
 });
 

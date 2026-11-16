@@ -1,4 +1,5 @@
 const config = require('../config');
+const { canonicalPhone } = require('./eligibility');
 
 let dbPromise;
 const LEASE_MS = 10 * 60 * 1000;
@@ -96,8 +97,9 @@ async function save(items) {
   if (!db) return false;
   const batch = db.batch();
   for (const item of items) {
-    const id = Buffer.from(item.phone).toString('base64url');
-    batch.set(collection(db).doc(id), removeUndefined({ ...item, updatedAt: new Date().toISOString() }), { merge: true });
+    const phone = canonicalPhone(item.phone);
+    const id = recordId(phone);
+    batch.set(collection(db).doc(id), removeUndefined({ ...item, phone, updatedAt: new Date().toISOString() }), { merge: true });
   }
   if (items.length) await batch.commit();
   return true;
@@ -108,15 +110,16 @@ async function save(items) {
 async function saveLead(item) {
   const db = await database();
   if (!db) return false;
-  const ref = collection(db).doc(recordId(item.phone));
+  const phone = canonicalPhone(item.phone);
+  const ref = collection(db).doc(recordId(phone));
   await db.runTransaction(async (transaction) => {
-    transaction.set(ref, removeUndefined({ ...item, updatedAt: new Date().toISOString() }), { merge: true });
+    transaction.set(ref, removeUndefined({ ...item, phone, updatedAt: new Date().toISOString() }), { merge: true });
   });
   return true;
 }
 
 function recordId(phone) {
-  return Buffer.from(phone).toString('base64url');
+  return Buffer.from(canonicalPhone(phone)).toString('base64url');
 }
 
 // A transactionally acquired lease coordinates serverless instances. The
@@ -206,9 +209,10 @@ async function updateCrm(id, changes) {
 async function archiveIncoming(message, phone) {
   const db = await database();
   if (!db || !message.id) throw new Error('Durable inbound storage requires a message ID and database');
+  const normalized = canonicalPhone(phone);
   try {
-    await db.collection('waAutomationInbox').doc(recordId(message.id)).create({
-      phone, message, receivedAt: new Date().toISOString(), status: 'received',
+    await db.collection('waAutomationInbox').doc(Buffer.from(String(message.id)).toString('base64url')).create({
+      phone: normalized, message, receivedAt: new Date().toISOString(), status: 'received',
     });
   } catch (error) {
     if (error.code !== 6 && error.code !== 'already-exists') throw error;
@@ -222,11 +226,12 @@ async function hasPriorInboxMessage(phone, messageId) {
   if (!messageId) return false;
   const db = await database();
   if (!db) return false;
+  const normalized = canonicalPhone(phone);
   const snapshot = await db.collection('waAutomationInbox')
-    .where('phone', '==', phone)
+    .where('phone', '==', normalized)
     .limit(2)
     .get();
-  const currentId = recordId(messageId);
+  const currentId = Buffer.from(String(messageId)).toString('base64url');
   return snapshot.docs.some((doc) => doc.id !== currentId);
 }
 

@@ -1,4 +1,5 @@
 const leads = require('./leads');
+const { canonicalPhone } = require('./eligibility');
 
 const FLOW_STEPS = {
   name: { question: "What's your name?", next: 'business', field: 'name' },
@@ -72,7 +73,7 @@ const SERVICE_FLOWS = {
 };
 
 function startFlow(phone) {
-  activeFlows.set(phone, { step: 'name', data: {}, history: [] });
+  activeFlows.set(canonicalPhone(phone), { step: 'name', data: {}, history: [] });
   return FLOW_STEPS.name.question;
 }
 
@@ -80,7 +81,7 @@ function startServiceFlow(phone, serviceKey) {
   const definition = SERVICE_FLOWS[serviceKey];
   if (!definition) return null;
   const firstStep = Object.keys(definition.steps)[0];
-  activeFlows.set(phone, { service: serviceKey, step: firstStep, data: {}, history: [] });
+  activeFlows.set(canonicalPhone(phone), { service: serviceKey, step: firstStep, data: {}, history: [] });
   return { intro: definition.intro, step: firstStep, ...definition.steps[firstStep] };
 }
 
@@ -108,18 +109,19 @@ function normalizeInstagramProfileUrl(value) {
 }
 
 function hasActiveFlow(phone) {
-  return activeFlows.has(phone);
+  return activeFlows.has(canonicalPhone(phone));
 }
 
 function getCurrentStep(phone) {
-  const flow = activeFlows.get(phone);
+  const flow = activeFlows.get(canonicalPhone(phone));
   if (!flow) return null;
   if (flow.service) return { step: flow.step, service: flow.service, ...SERVICE_FLOWS[flow.service].steps[flow.step] };
   return { step: flow.step, ...FLOW_STEPS[flow.step] };
 }
 
 function processFlowResponse(phone, text) {
-  const flow = activeFlows.get(phone);
+  const key = canonicalPhone(phone);
+  const flow = activeFlows.get(key);
   if (!flow) return null;
 
   const normalized = (text || '').trim();
@@ -192,8 +194,8 @@ function processFlowResponse(phone, text) {
       return { reply: next.question, options: next.options || null, step: flow.step, done: false };
     }
     const data = { ...flow.data };
-    activeFlows.delete(phone);
-    const lead = leads.getLead(phone);
+    activeFlows.delete(key);
+    const lead = leads.getLead(key);
     leads.updateLead(phone, {
       service: flowDefinition.service,
       humanRequested: flow.service === 'team',
@@ -225,8 +227,8 @@ function processFlowResponse(phone, text) {
   }
 
   const data = flow.data;
-  activeFlows.delete(phone);
-  const lead = leads.getLead(phone);
+  activeFlows.delete(key);
+  const lead = leads.getLead(key);
   if (data.name) lead.name = data.name;
   if (data.business) lead.business = data.business;
   if (data.budget) lead.budget = data.budget;
@@ -237,7 +239,7 @@ function processFlowResponse(phone, text) {
 }
 
 function cancelFlow(phone) {
-  activeFlows.delete(phone);
+  activeFlows.delete(canonicalPhone(phone));
 }
 
 function restoreFlow(phone, state) {
@@ -258,18 +260,19 @@ function restoreFlow(phone, state) {
   if (state?.service === 'photo' && state.step !== 'clientName' && !state.data?.clientName) {
     state = { ...state, step: 'clientName', data: { ...(state.data || {}) } };
   }
+  const key = canonicalPhone(phone);
   const validStep = state?.service
     ? SERVICE_FLOWS[state.service]?.steps[state.step]
     : FLOW_STEPS[state?.step];
   if (state && validStep && state.data && typeof state.data === 'object') {
-    activeFlows.set(phone, { step: state.step, data: { ...state.data }, service: state.service, history: Array.isArray(state.history) ? state.history : [] });
+    activeFlows.set(key, { step: state.step, data: { ...state.data }, service: state.service, history: Array.isArray(state.history) ? state.history : [] });
   } else {
-    activeFlows.delete(phone);
+    activeFlows.delete(key);
   }
 }
 
 function snapshotFlow(phone) {
-  const state = activeFlows.get(phone);
+  const state = activeFlows.get(canonicalPhone(phone));
   return state ? { step: state.step, data: { ...state.data }, service: state.service, history: [...(state.history || [])] } : null;
 }
 

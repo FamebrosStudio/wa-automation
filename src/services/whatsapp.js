@@ -1,7 +1,7 @@
 const axios = require('axios');
 const https = require('node:https');
 const config = require('../config');
-const { eligibility, isAlwaysAutomatedTestNumber, isSuppressedNumber } = require('./eligibility');
+const { eligibility, isAlwaysAutomatedTestNumber, isSuppressedNumber, canonicalPhone } = require('./eligibility');
 
 const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 // Reuse TLS connections across warm webhook invocations to avoid repeated
@@ -9,13 +9,14 @@ const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 const graphAgent = new https.Agent({ keepAlive: true, maxSockets: 50 });
 
 async function send(payload, options = {}) {
-  if (isSuppressedNumber(payload.to)) throw new Error('Automated send suppressed: suppressed-number');
-  const testRecipient = isAlwaysAutomatedTestNumber(payload.to);
+  const recipient = canonicalPhone(payload.to);
+  if (isSuppressedNumber(recipient)) throw new Error('Automated send suppressed: suppressed-number');
+  const testRecipient = isAlwaysAutomatedTestNumber(recipient);
   if (process.env.BOT_ENABLED !== 'true' && !options.force && !testRecipient) throw new Error('Sales automation is disabled');
   if (testRecipient && !options.force) {
     const firestore = require('./firestore');
     if (firestore.isConfigured()) {
-      const record = await firestore.getLeadByPhone(payload.to);
+      const record = await firestore.getLeadByPhone(recipient);
       const decision = record && eligibility(record);
       if (decision && !decision.allowed && decision.reason === 'paused-or-opted-out') {
         throw new Error('Automated send suppressed: paused-or-opted-out');
@@ -25,7 +26,7 @@ async function send(payload, options = {}) {
   if (!options.force && !testRecipient) {
     const firestore = require('./firestore');
     if (!firestore.isConfigured()) throw new Error('Durable contact eligibility is unavailable');
-    const decision = eligibility(await firestore.getLeadByPhone(payload.to));
+    const decision = eligibility(await firestore.getLeadByPhone(recipient));
     if (!decision.allowed) throw new Error(`Automated send suppressed: ${decision.reason}`);
   }
   if (!config.whatsappToken || !config.phoneNumberId) {

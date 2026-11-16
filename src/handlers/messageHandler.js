@@ -3,18 +3,20 @@ const K = require('../data/knowledge');
 const leads = require('../services/leads');
 const flow = require('../services/flow');
 const firestore = require('../services/firestore');
-const { eligibility, hasFirstContactEnrollment, isAlwaysAutomatedTestNumber, isSuppressedNumber } = require('../services/eligibility');
+const { eligibility, hasFirstContactEnrollment, isAlwaysAutomatedTestNumber, isSuppressedNumber, canonicalPhone } = require('../services/eligibility');
 
 const processed = new Set();
 const sessions = new Map();
 const phoneQueues = new Map();
 const AUTOMATION_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
-const MENU_ORDER = ['service_social', 'service_ads', 'service_photo', 'service_website', 'service_team'];
+const MENU_ORDER = ['service_social', 'service_ads', 'service_photo', 'service_website', 'service_other', 'service_team'];
 const SERVICE_IDS = {
   service_social: 'social', service_ads: 'ads', service_photo: 'photo',
   service_website: 'website', service_other: 'other', service_team: 'team',
 };
+const SUPPRESSED_STATUSES = new Set(['Qualified', 'Won', 'Lost', 'Existing Client', 'Non-qualified']);
+const SILENT_ACK_RE = /^(?:(?:ok(?:ay)?|k+|thanks?(?:\s+you)?|ty|thx|sure|got\s+it|noted|alright|cool|great|nice|fine|yes|yeah|yep|no|nope|wait|one\s+(?:min|sec|minute|second)|checking|will\s+(?:check|let\s+you\s+know|revert|get\s+back)|later)[!?.]*|[\p{Emoji_Presentation}\p{Extended_Pictographic}\s!?.,]+)$/iu;
 
 function cleanupProcessed() {
   if (processed.size > 5000) processed.clear();
@@ -76,7 +78,7 @@ async function startLeadCapture(from) {
   await whatsapp.text(from, `${flow.startFlow(from)} Type cancel at any time to stop.`);
 }
 
-const HUMAN_REQUEST_RE = /\b(call|plz\s+call|please\s+call|call\s+me|can\s+you\s+call|talk\s+to\s+(someone|our\s+team|a\s+human|human|team)|need\s+(a\s+)?human|human\s+support|real\s+person|speak\s+to\s+(someone|our\s+team|a\s+human)|connect\s+me|live\s+agent)\b/i;
+const HUMAN_REQUEST_RE = /\b(plz\s+call|please\s+call|call\s+me|can\s+you\s+call|give\s+(?:me\s+)?a\s+call|schedule\s+a\s+call|book\s+a\s+call|want\s+a\s+call|call\s+back|callback|talk\s+to\s+(?:someone|our\s+team|a\s+human|human|team)|need\s+(?:a\s+)?human|human\s+support|real\s+person|speak\s+to\s+(?:someone|our\s+team|a\s+human)|connect\s+me|live\s+agent)\b|^call\??$/i;
 
 function leadResetForNewEnquiry(from) {
   leads.updateLead(from, {
@@ -84,6 +86,8 @@ function leadResetForNewEnquiry(from) {
     completionMessageSent: false,
     welcomeSent: false,
     humanRequested: false,
+    fallbackSent: false,
+    nonTextNoticeSent: false,
     automationEligible: true,
     automationExpiredAt: null,
   });
@@ -161,17 +165,17 @@ async function handleIncomingInMemory(message, from) {
     (conversationHistory || []).length > 0
   );
   const firstMessage = !hasPriorActivity;
-  if (firstMessage) {
-    leads.updateLead(from, { welcomeSent: true });
-    await sendMenu(from);
-  }
-
   const type = message.type;
+
+  if (['reaction', 'system', 'unsupported', 'ephemeral', 'sticker'].includes(type)) {
+    return { ignored: true, reason: `ignored-${type}` };
+  }
 
   if (type === 'interactive') {
     const id = interactiveReplyId(message);
 
     if (id) {
+      if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       leads.addMessage(from, 'user', `[selected: ${id}]`);
 
       if (flow.hasActiveFlow(from) && /^flow_[a-z0-9]+_\d+$/i.test(id)) {
@@ -204,25 +208,31 @@ async function handleIncomingInMemory(message, from) {
   if (type === 'text') {
     const text = (message.text?.body || '').trim();
     if (!text) {
-      if (!firstMessage) await sendMenu(from);
+      if (firstMessage) {
+        leads.updateLead(from, { welcomeSent: true });
+      }
+      await sendMenu(from);
       return;
     }
 
     leads.addMessage(from, 'user', text);
 
     if (flow.hasActiveFlow(from)) {
-      const action = K.matchKeyword(text);
-      if (action === 'menu' || action === 'contact' || action === 'human') flow.cancelFlow(from);
-      else if (/^(cancel|stop)$/i.test(text)) {
+      if (/^(menu|main menu)$/i.test(text)) {
+        flow.cancelFlow(from);
+        await sendMenu(from);
+        return;
+      }
+      if (/^(cancel|stop)$/i.test(text)) {
         await handleFlowText(from, text);
         return;
-      } else {
-        if (await handleFlowText(from, text)) return;
       }
+      if (await handleFlowText(from, text)) return;
     }
 
     const nid = numberToId(text);
     if (nid) {
+      if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       if (SERVICE_IDS[nid]) {
         await startService(from, nid);
         return;
@@ -246,20 +256,24 @@ async function handleIncomingInMemory(message, from) {
       : lowerText.includes('talk to our team') || lowerText.includes('speak to your team') ? 'service_team'
       : null;
     if (requestedService) {
+      if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       await startService(from, requestedService);
       return;
     }
     const kw = K.matchKeyword(text);
     if (kw === 'contact') {
+      if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       leads.classifyLead(from, text, null);
       await startLeadCapture(from);
       return;
     }
     if (kw === 'menu') {
+      leads.updateLead(from, { welcomeSent: true });
       leads.classifyLead(from, text, null);
-      if (!firstMessage) await sendMenu(from);
+      await sendMenu(from);
       return;
     } else if (kw) {
+      if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       let interactionType = null;
       if (kw === 'human' || kw === 'contact') interactionType = 'human_request';
       leads.classifyLead(from, text, interactionType);
@@ -267,11 +281,21 @@ async function handleIncomingInMemory(message, from) {
       return;
     }
 
-    // New conversations already received the welcome menu above.
-    if (firstMessage) return;
+    if (firstMessage) {
+      leads.updateLead(from, { welcomeSent: true });
+      await sendMenu(from);
+      return;
+    }
 
-    // Fallback - conversational, not template-like
     leads.classifyLead(from, text, null);
+    if (SILENT_ACK_RE.test(text)) {
+      return { ignored: true, reason: 'conversational-acknowledgement' };
+    }
+    if (lead.fallbackSent || sessions.get(from)?.last === 'fallback') {
+      return { ignored: true, reason: 'fallback-already-sent' };
+    }
+    leads.updateLead(from, { fallbackSent: true });
+    sessions.set(from, { last: 'fallback' });
     await whatsapp.text(
       from,
       "Hmm, I am not quite sure what you mean. Let me show you the options so you can pick what interests you."
@@ -280,15 +304,26 @@ async function handleIncomingInMemory(message, from) {
     return;
   }
 
-  // non-text
+  // non-text (image, video, audio, document, location, contacts)
+  if (firstMessage) {
+    leads.updateLead(from, { welcomeSent: true });
+    await sendMenu(from);
+    return;
+  }
+  if (lead.nonTextNoticeSent) {
+    return { ignored: true, reason: 'non-text-already-noticed' };
+  }
+  leads.updateLead(from, { nonTextNoticeSent: true });
   await whatsapp.text(
     from,
-    "I can currently read text messages only. Please type your question or choose from the menu below."
+    "I can currently read text messages only. Please type your question or choose from the menu."
   );
-  await sendMenu(from);
+  if (!flow.hasActiveFlow(from)) await sendMenu(from);
 }
 
-async function handleIncoming(message, from) {
+async function handleIncoming(message, rawFrom) {
+  const from = canonicalPhone(rawFrom);
+  if (!from) return { ignored: true, reason: 'missing-sender' };
   const durableHistoryEnabled = firestore.isConfigured();
   if (durableHistoryEnabled) await firestore.archiveIncoming(message, from);
   const testRecipient = isAlwaysAutomatedTestNumber(from);
@@ -386,7 +421,7 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'opted-out' };
       }
-      const optedOut = /^(stop|unsubscribe|not interested|no thanks)$/i.test(body);
+      const optedOut = /^(stop|unsubscribe|not interested|no thanks|no need|don't need|just browsing|just looking|leave me alone)$/i.test(body);
       if (optedOut) {
         flow.cancelFlow(from);
         const current = leads.snapshot(from)[0];
@@ -399,7 +434,8 @@ async function handleIncoming(message, from) {
       }
       const humanHasTakenOver = Boolean(
         knownLead?.humanRequested || knownLead?.crm?.humanTakeover || knownLead?.crm?.botPaused ||
-        record?.crm?.humanTakeover || record?.crm?.botPaused
+        record?.crm?.humanTakeover || record?.crm?.botPaused ||
+        knownLead?.conversationStatus === 'HANDOVER' || record?.lead?.conversationStatus === 'HANDOVER'
       );
       if (humanHasTakenOver) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
@@ -448,7 +484,7 @@ async function handleIncoming(message, from) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'human-handover' };
       }
-      if (!testRecipient && knownLead?.status === 'Qualified') {
+      if (!testRecipient && SUPPRESSED_STATUSES.has(knownLead?.status)) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'qualified-lead' };
       }
@@ -478,13 +514,21 @@ async function handleIncoming(message, from) {
         const current = leads.snapshot(from)[0];
         if (current) {
           if (releaseLease) await releaseLease.assertOwnership();
-           const serviceDetails = current.lead.serviceDetails || {};
-           await firestore.saveLead({ ...current, activeFlow: flow.snapshotFlow(from), crm: {
-             ...(current.lead.crm || {}),
-             owner: current.lead.assignedTeam || '',
-             tags: current.lead.service ? [current.lead.service] : [],
-             notes: Object.keys(serviceDetails).length ? JSON.stringify(serviceDetails) : '',
-           } });
+          const serviceDetails = current.lead.serviceDetails || {};
+          const existingCrm = { ...(record?.crm || {}), ...(current.lead.crm || {}) };
+          const defaultTags = current.lead.service ? [current.lead.service] : [];
+          const existingTags = Array.isArray(existingCrm.tags) ? existingCrm.tags : [];
+          const mergedTags = [...new Set([...existingTags, ...defaultTags].filter(Boolean))];
+          await firestore.saveLead({
+            ...current,
+            activeFlow: flow.snapshotFlow(from),
+            crm: {
+              ...existingCrm,
+              owner: existingCrm.owner || current.lead.assignedTeam || '',
+              tags: mergedTags,
+              notes: existingCrm.notes || (Object.keys(serviceDetails).length ? JSON.stringify(serviceDetails) : ''),
+            },
+          });
         }
       }
       if (firestoreEnabled && message.id) {
@@ -506,7 +550,8 @@ async function handleIncoming(message, from) {
 
 // WhatsApp Business App echoes are human-authored outbound messages. They are
 // not customer messages and must never be sent through the auto-reply flow.
-async function handleHumanEcho(message, to) {
+async function handleHumanEcho(message, rawTo) {
+  const to = canonicalPhone(rawTo);
   if (!to || !message?.id) return { ignored: true, reason: 'echo-recipient-unavailable' };
   const previous = phoneQueues.get(to) || Promise.resolve();
   const task = previous.catch(() => {}).then(async () => {

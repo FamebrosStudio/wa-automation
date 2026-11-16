@@ -1,4 +1,5 @@
 const config = require('../config');
+const { canonicalPhone } = require('./eligibility');
 const CRM_STATUSES = ['Qualified', 'Non-confirmed', 'Non-qualified'];
 
 const STATUS = {
@@ -12,9 +13,10 @@ const MAX_HISTORY = 12;
 const leads = new Map();
 
 function getLead(phone) {
-  if (!leads.has(phone)) {
-    leads.set(phone, {
-      phone,
+  const key = canonicalPhone(phone);
+  if (!leads.has(key)) {
+    leads.set(key, {
+      phone: key,
       status: null,
       firstSeen: new Date().toISOString(),
       lastSeen: new Date().toISOString(),
@@ -35,18 +37,19 @@ function getLead(phone) {
       serviceDetails: {},
     });
   }
-  return leads.get(phone);
+  return leads.get(key);
 }
 
 function addMessage(phone, role, content, messageId) {
-  if (!conversations.has(phone)) conversations.set(phone, []);
-  const history = conversations.get(phone);
+  const key = canonicalPhone(phone);
+  if (!conversations.has(key)) conversations.set(key, []);
+  const history = conversations.get(key);
   history.push({ role, content, ts: Date.now(), ...(messageId ? { id: messageId } : {}) });
   if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
 }
 
 function getHistory(phone) {
-  return conversations.get(phone) || [];
+  return conversations.get(canonicalPhone(phone)) || [];
 }
 
 function classifyLead(phone, message, interactionType) {
@@ -145,17 +148,19 @@ function restore(snapshot = []) {
   conversations.clear();
   for (const item of snapshot) {
     if (!item || !item.phone || !item.lead) continue;
+    const key = canonicalPhone(item.phone);
     normalizeStatus(item.lead);
-    leads.set(item.phone, item.lead);
-    conversations.set(item.phone, Array.isArray(item.history) ? item.history.slice(-MAX_HISTORY) : []);
+    leads.set(key, item.lead);
+    conversations.set(key, Array.isArray(item.history) ? item.history.slice(-MAX_HISTORY) : []);
   }
 }
 
 function restoreOne(item) {
   if (!item || !item.phone || !item.lead) return;
+  const key = canonicalPhone(item.phone);
   normalizeStatus(item.lead);
-  leads.set(item.phone, item.lead);
-  conversations.set(item.phone, Array.isArray(item.history) ? item.history.slice(-MAX_HISTORY) : []);
+  leads.set(key, item.lead);
+  conversations.set(key, Array.isArray(item.history) ? item.history.slice(-MAX_HISTORY) : []);
 }
 
 function normalizeStatus(lead) {
@@ -165,7 +170,7 @@ function normalizeStatus(lead) {
 }
 
 function snapshot(phone) {
-  const selected = phone ? [phone] : Array.from(leads.keys());
+  const selected = phone ? [canonicalPhone(phone)] : Array.from(leads.keys());
   return selected.filter((key) => leads.has(key)).map((key) => ({
     phone: key,
     lead: leads.get(key),
