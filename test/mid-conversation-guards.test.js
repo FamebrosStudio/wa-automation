@@ -62,17 +62,17 @@ test('reactions, stickers, and casual acknowledgements do not interrupt conversa
 
     for (const ack of ['ok', 'Thanks!', 'sure', 'got it', '👍']) {
       const res = await handleIncoming({ id: mid(), type: 'text', text: { body: ack } }, phone);
-      assert.equal(res.reason, 'conversational-acknowledgement');
+      assert.ok(['conversational-acknowledgement', 'human-takeover'].includes(res.reason));
     }
     assert.equal(sent.length, beforeReaction, 'acknowledgements never trigger fallback menu');
 
-    // Unknown text never interrupts with "Hmm, I am not quite sure..." or Main Menu
+    // Once auto-paused after 2+ unmatched messages, all further messages stay silent
     const unknown1 = await handleIncoming({ id: mid(), type: 'text', text: { body: 'what is the weather today' } }, phone);
-    assert.equal(unknown1.reason, 'unmatched-mid-conversation');
+    assert.ok(['unmatched-mid-conversation', 'human-takeover'].includes(unknown1.reason));
     const unknown2 = await handleIncoming({ id: mid(), type: 'text', text: { body: 'I am sending you the photo' } }, phone);
-    assert.equal(unknown2.reason, 'unmatched-mid-conversation');
+    assert.ok(['unmatched-mid-conversation', 'human-takeover'].includes(unknown2.reason));
     const hiLater = await handleIncoming({ id: mid(), type: 'text', text: { body: 'hi' } }, phone);
-    assert.equal(hiLater, undefined);
+    assert.equal(hiLater?.reason, 'human-takeover');
     assert.equal(sent.length, beforeReaction, 'mid-conversation messages never re-dump menu or fallback');
 
     // Quoted reply on an unseen contact is treated as an existing chat and stays silent
@@ -174,4 +174,39 @@ test('webhook ignores messages from the business display phone number itself', a
     else delete require.cache[handlerPath];
     delete require.cache[require.resolve('../src/index')];
   }
+});
+
+test('unseen existing-chat signals stay silent and repeated invalid flow inputs auto-pause to manual', async () => {
+  const { sent, leads, flow, restore } = setup();
+  try {
+    const { handleIncoming } = require('../src/handlers/messageHandler');
+
+    // Unseen contact sending mid-thread phrase, media, or forwarded message stays silent
+    const r1 = await handleIncoming({ id: mid(), type: 'text', text: { body: 'Hey any update on the invoice?' } }, '919900010101');
+    const r2 = await handleIncoming({ id: mid(), type: 'image', image: { id: 'img-unseen' } }, '919900010102');
+    const r3 = await handleIncoming({ id: mid(), type: 'text', text: { body: 'check this' }, context: { forwarded: true } }, '919900010103');
+    assert.equal(r1.reason, 'existing-contact-not-enrolled');
+    assert.equal(r2.reason, 'existing-contact-not-enrolled');
+    assert.equal(r3.reason, 'existing-contact-not-enrolled');
+    assert.equal(sent.length, 0);
+
+    // 2 consecutive invalid answers in an active flow abandon the flow and pause the bot
+    const p = '919900010104';
+    await handleIncoming({ id: mid(), type: 'text', text: { body: 'hi' } }, p);
+    await handleIncoming({ id: mid(), type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'service_social' } } }, p);
+    assert.equal(flow.getCurrentStep(p).step, 'businessOwner');
+    const beforeInvalid = sent.length;
+    await handleIncoming({ id: mid(), type: 'text', text: { body: 'wait let me check' } }, p);
+    assert.equal(sent.length, beforeInvalid + 1);
+    await handleIncoming({ id: mid(), type: 'text', text: { body: 'actually call later' } }, p);
+    assert.equal(sent.length, beforeInvalid + 1, 'second invalid answer abandons flow silently');
+    assert.equal(flow.hasActiveFlow(p), false);
+    assert.equal(leads.getLead(p).conversationStatus, 'MANUAL');
+    assert.equal(leads.getLead(p).crm.botPaused, true);
+
+    // Subsequent message stays silent due to manual pause
+    const afterPause = await handleIncoming({ id: mid(), type: 'text', text: { body: 'menu' } }, p);
+    assert.equal(afterPause.reason, 'human-takeover');
+    assert.equal(sent.length, beforeInvalid + 1);
+  } finally { restore(); }
 });

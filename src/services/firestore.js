@@ -229,10 +229,19 @@ async function hasPriorInboxMessage(phone, messageId) {
   const normalized = canonicalPhone(phone);
   const snapshot = await db.collection('waAutomationInbox')
     .where('phone', '==', normalized)
-    .limit(2)
+    .limit(5)
     .get();
   const currentId = Buffer.from(String(messageId)).toString('base64url');
-  return snapshot.docs.some((doc) => doc.id !== currentId);
+  const currentDoc = snapshot.docs.find((doc) => doc.id === currentId);
+  const currentTs = Date.parse(currentDoc?.data()?.receivedAt || '') || Date.now();
+  return snapshot.docs.some((doc) => {
+    if (doc.id === currentId) return false;
+    const data = doc.data() || {};
+    if (data.status === 'dashboard-cleared-tombstone') return true;
+    const otherTs = Date.parse(data.receivedAt || '');
+    if (!Number.isFinite(otherTs)) return true;
+    return currentTs - otherTs > 5000;
+  });
 }
 
 module.exports = { isConfigured, database, loadAll, getLeadByPhone, saveLead, save, recordId, getLead, updateCrm, archiveIncoming, hasPriorInboxMessage, acquirePhoneLease, hasProcessedMessage, markMessageProcessed, removeUndefined };

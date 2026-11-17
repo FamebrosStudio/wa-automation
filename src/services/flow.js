@@ -160,6 +160,11 @@ function processFlowResponse(phone, text) {
   if (flowDefinition && stepConfig.field === 'instagram' && answer.toLowerCase() !== 'none') {
     answer = normalizeInstagramProfileUrl(answer);
     if (!answer) {
+      flow.invalidAttempts = (flow.invalidAttempts || 0) + 1;
+      if (flow.invalidAttempts >= 2) {
+        activeFlows.delete(key);
+        return { reply: null, options: null, step: flow.step, done: false, abandoned: true };
+      }
       return {
         reply: 'That does not look like a valid Instagram profile link. Please send the full profile URL, for example: https://www.instagram.com/yourbrand/',
         options: null,
@@ -171,8 +176,14 @@ function processFlowResponse(phone, text) {
   }
 
   if (stepConfig.options && !stepConfig.options.includes(answer)) {
+    flow.invalidAttempts = (flow.invalidAttempts || 0) + 1;
+    if (flow.invalidAttempts >= 2) {
+      activeFlows.delete(key);
+      return { reply: null, options: null, step: flow.step, done: false, abandoned: true };
+    }
     return { reply: stepConfig.question, options: stepConfig.options, step: flow.step, done: false };
   }
+  flow.invalidAttempts = 0;
   flow.history = flow.history || [];
   flow.history.push(flow.step);
   flow.data[stepConfig.field] = answer;

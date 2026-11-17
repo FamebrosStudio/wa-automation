@@ -23,7 +23,7 @@ function eligibility(record) {
   if (crm.optedOut || lead.optedOut) return { allowed: false, reason: 'paused-or-opted-out' };
   // A human-authored reply or explicit bot pause always ends automation,
   // including on the internal test recipient.
-  if (crm.botPaused || crm.humanTakeover || lead.humanRequested || lead.conversationStatus === 'HANDOVER' || lead.conversationStatus === 'EXISTING_CHAT' || lead.conversationStatus === 'OPTED_OUT') {
+  if (crm.botPaused || crm.humanTakeover || lead.humanRequested || ['HANDOVER', 'EXISTING_CHAT', 'OPTED_OUT', 'MANUAL'].includes(lead.conversationStatus)) {
     return { allowed: false, reason: 'paused-or-opted-out' };
   }
   // This one explicitly approved test recipient bypasses normal CRM restrictions.

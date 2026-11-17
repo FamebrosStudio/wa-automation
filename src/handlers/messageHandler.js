@@ -17,6 +17,7 @@ const SERVICE_IDS = {
 };
 const SUPPRESSED_STATUSES = new Set(['Qualified', 'Won', 'Lost', 'Existing Client', 'Non-qualified']);
 const SILENT_ACK_RE = /^(?:(?:ok(?:ay)?|k+|thanks?(?:\s+you)?|ty|thx|sure|got\s+it|noted|alright|cool|great|nice|fine|yes|yeah|yep|no|nope|wait|one\s+(?:min|sec|minute|second)|checking|will\s+(?:check|let\s+you\s+know|revert|get\s+back)|later)[!?.]*|[\p{Emoji_Presentation}\p{Extended_Pictographic}\s!?.,]+)$/iu;
+const EXISTING_CHAT_RE = /\b(as discussed|per our call|on our call|any update|following up|follow up on|did you check|have you checked|sent you|shared the|payment done|paid the|invoice|receipt|revisions?|changes in the|approve[d]?)\b/i;
 
 function cleanupProcessed() {
   if (processed.size > 5000) processed.clear();
@@ -104,6 +105,13 @@ async function handleFlowText(from, text) {
     const current = leads.snapshot(from)[0];
     if (current) await firestore.saveLead({ ...current, activeFlow: flow.snapshotFlow(from) });
   };
+  if (result.abandoned) {
+    const existing = leads.snapshot(from)[0];
+    const crm = { ...(existing?.lead?.crm || {}), botPaused: true };
+    leads.updateLead(from, { conversationStatus: 'MANUAL', crm });
+    await persistProgress();
+    return true;
+  }
   // Completion: send thank-you exactly once, then lock the conversation.
   if (result.done) {
     const lead = leads.getLead(from);
@@ -299,6 +307,15 @@ async function handleIncomingInMemory(message, from) {
     }
 
     leads.classifyLead(from, text, null);
+    if (lead.welcomeSent && !lead.service && !flow.hasActiveFlow(from)) {
+      const unmatchedCount = (lead.unmatchedCount || 0) + 1;
+      const updates = { unmatchedCount };
+      if (unmatchedCount >= 2) {
+        updates.conversationStatus = 'MANUAL';
+        updates.crm = { ...(lead.crm || {}), botPaused: true };
+      }
+      leads.updateLead(from, updates);
+    }
     return { ignored: true, reason: SILENT_ACK_RE.test(text) ? 'conversational-acknowledgement' : 'unmatched-mid-conversation' };
   }
 
@@ -390,7 +407,13 @@ async function handleIncoming(message, rawFrom) {
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
       if (!previouslyStored) {
-        if (!testRecipient && message.context?.id) {
+        const bodyForExistingCheck = message.type === 'text' ? (message.text?.body || '').trim() : '';
+        const looksLikeExistingChat = !testRecipient && (
+          Boolean(message.context?.id || message.context?.forwarded || message.context?.frequently_forwarded) ||
+          !['text', 'interactive'].includes(message.type) ||
+          EXISTING_CHAT_RE.test(bodyForExistingCheck)
+        );
+        if (looksLikeExistingChat) {
           if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
           return { ignored: true, reason: 'existing-contact-not-enrolled' };
         }

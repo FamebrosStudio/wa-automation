@@ -7,7 +7,7 @@ const config = require('./config');
 const { handleIncoming, handleHumanEcho } = require('./handlers/messageHandler');
 const leads = require('./services/leads');
 const firestore = require('./services/firestore');
-const { isAlwaysAutomatedTestNumber, canonicalPhone } = require('./services/eligibility');
+const { isAlwaysAutomatedTestNumber, canonicalPhone, BLOCKED_TYPES } = require('./services/eligibility');
 const localCrm = new Map();
 
 const app = express();
@@ -244,6 +244,9 @@ app.patch('/leads/:id', dashboardAuth, async (req, res) => {
     if (owner !== undefined) crm.owner = owner.trim();
     if (tags !== undefined) crm.tags = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
     if (status !== undefined) record.lead.status = status || null;
+    if (BLOCKED_TYPES.has(crm.contactType || record.lead.contactType) || ['Qualified', 'Won', 'Lost', 'Existing Client', 'Non-qualified'].includes(record.lead.status)) {
+      crm.botPaused = true;
+    }
     if (crm.botPaused === false && crm.humanTakeover === false) {
       record.lead.humanRequested = false;
       if (record.lead.conversationStatus === 'HANDOVER') record.lead.conversationStatus = null;

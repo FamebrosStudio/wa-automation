@@ -7,6 +7,20 @@ const BASE = `https://graph.facebook.com/${config.graphVersion}`;
 // Reuse TLS connections across warm webhook invocations to avoid repeated
 // DNS/TCP/TLS setup for every message sent through the Graph API.
 const graphAgent = new https.Agent({ keepAlive: true, maxSockets: 50 });
+const recentSends = new Map();
+const SEND_WINDOW_MS = 60 * 1000;
+const MAX_SENDS_PER_WINDOW = 6;
+
+function checkAndRecordSendRate(recipient) {
+  const now = Date.now();
+  const timestamps = (recentSends.get(recipient) || []).filter((ts) => now - ts < SEND_WINDOW_MS);
+  if (timestamps.length >= MAX_SENDS_PER_WINDOW) {
+    throw new Error('Automated send suppressed: rate-limit-loop-guard');
+  }
+  timestamps.push(now);
+  recentSends.set(recipient, timestamps);
+  if (recentSends.size > 1000) recentSends.clear();
+}
 
 async function send(payload, options = {}) {
   const recipient = canonicalPhone(payload.to);
@@ -34,6 +48,7 @@ async function send(payload, options = {}) {
     // Throwing lets the webhook return 503 so Meta can retry after configuration is fixed.
     throw new Error('WhatsApp sending is not configured: set WHATSAPP_TOKEN and PHONE_NUMBER_ID');
   }
+  if (!options.force) checkAndRecordSendRate(recipient);
   const url = `${BASE}/${config.phoneNumberId}/messages`;
   try {
     const res = await axios.post(url, payload, {
