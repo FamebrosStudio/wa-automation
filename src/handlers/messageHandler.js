@@ -230,7 +230,8 @@ async function handleIncomingInMemory(message, from) {
       if (await handleFlowText(from, text)) return;
     }
 
-    const nid = numberToId(text);
+    const menuJustShown = sessions.get(from)?.last === 'menu';
+    const nid = (firstMessage || menuJustShown) ? numberToId(text) : null;
     if (nid) {
       if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       if (SERVICE_IDS[nid]) {
@@ -247,21 +248,29 @@ async function handleIncomingInMemory(message, from) {
       return;
     }
 
-    // Enhanced natural language understanding
-    const lowerText = text.toLowerCase();
-    const requestedService = lowerText.includes('social media') || lowerText.includes('social management') ? 'service_social'
-      : lowerText.includes('meta ad') || lowerText.includes('lead generation') || lowerText.includes('facebook ad') || lowerText.includes('instagram ad') ? 'service_ads'
-      : lowerText.includes('photo') || lowerText.includes('video') || lowerText.includes('shoot') ? 'service_photo'
-      : lowerText.includes('website') || lowerText.includes('web development') ? 'service_website'
-      : lowerText.includes('talk to our team') || lowerText.includes('speak to your team') ? 'service_team'
-      : null;
-    if (requestedService) {
-      if (firstMessage) leads.updateLead(from, { welcomeSent: true });
-      await startService(from, requestedService);
-      return;
+    if (firstMessage) {
+      const lowerText = text.toLowerCase();
+      const requestedService = lowerText.includes('social media') || lowerText.includes('social management') ? 'service_social'
+        : lowerText.includes('meta ad') || lowerText.includes('lead generation') || lowerText.includes('facebook ad') || lowerText.includes('instagram ad') ? 'service_ads'
+        : lowerText.includes('website') || lowerText.includes('web development') ? 'service_website'
+        : lowerText.includes('talk to our team') || lowerText.includes('speak to your team') ? 'service_team'
+        : null;
+      if (requestedService) {
+        leads.updateLead(from, { welcomeSent: true });
+        await startService(from, requestedService);
+        return;
+      }
     }
+
     const kw = K.matchKeyword(text);
-    if (kw === 'contact') {
+    const hasOngoingChat = Boolean(
+      lead.service ||
+      lead.name ||
+      lead.business ||
+      lead.messageCount >= 2 ||
+      (conversationHistory || []).some((m) => m.role === 'user' && m.content !== text)
+    );
+    if (kw === 'contact' && (firstMessage || menuJustShown || /^contact$/i.test(text))) {
       if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       leads.classifyLead(from, text, null);
       await startLeadCapture(from);
@@ -270,9 +279,11 @@ async function handleIncomingInMemory(message, from) {
     if (kw === 'menu') {
       leads.updateLead(from, { welcomeSent: true });
       leads.classifyLead(from, text, null);
-      await sendMenu(from);
+      if (!hasOngoingChat || /^(menu|main menu)$/i.test(text)) {
+        await sendMenu(from);
+      }
       return;
-    } else if (kw) {
+    } else if (kw && (firstMessage || menuJustShown || /^[a-z\s?]{1,25}$/i.test(text))) {
       if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       let interactionType = null;
       if (kw === 'human' || kw === 'contact') interactionType = 'human_request';
@@ -288,37 +299,17 @@ async function handleIncomingInMemory(message, from) {
     }
 
     leads.classifyLead(from, text, null);
-    if (SILENT_ACK_RE.test(text)) {
-      return { ignored: true, reason: 'conversational-acknowledgement' };
-    }
-    if (lead.fallbackSent || sessions.get(from)?.last === 'fallback') {
-      return { ignored: true, reason: 'fallback-already-sent' };
-    }
-    leads.updateLead(from, { fallbackSent: true });
-    sessions.set(from, { last: 'fallback' });
-    await whatsapp.text(
-      from,
-      "Hmm, I am not quite sure what you mean. Let me show you the options so you can pick what interests you."
-    );
-    await sendMenu(from);
-    return;
+    return { ignored: true, reason: SILENT_ACK_RE.test(text) ? 'conversational-acknowledgement' : 'unmatched-mid-conversation' };
   }
 
   // non-text (image, video, audio, document, location, contacts)
+  leads.addMessage(from, 'user', `[${type || 'media'}]`);
   if (firstMessage) {
     leads.updateLead(from, { welcomeSent: true });
     await sendMenu(from);
     return;
   }
-  if (lead.nonTextNoticeSent) {
-    return { ignored: true, reason: 'non-text-already-noticed' };
-  }
-  leads.updateLead(from, { nonTextNoticeSent: true });
-  await whatsapp.text(
-    from,
-    "I can currently read text messages only. Please type your question or choose from the menu."
-  );
-  if (!flow.hasActiveFlow(from)) await sendMenu(from);
+  return { ignored: true, reason: 'non-text-silent' };
 }
 
 async function handleIncoming(message, rawFrom) {
@@ -399,6 +390,10 @@ async function handleIncoming(message, rawFrom) {
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
       }
       if (!previouslyStored) {
+        if (!testRecipient && message.context?.id) {
+          if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+          return { ignored: true, reason: 'existing-contact-not-enrolled' };
+        }
         // Enrollment is only created when no prior lead record exists. This
         // timestamp is required at every outbound send boundary, so legacy
         // contacts cannot become eligible merely from stale flags or a menu tap.
@@ -560,7 +555,15 @@ async function handleHumanEcho(message, rawTo) {
     const durable = firestore.isConfigured();
     try {
       if (durable) {
-        releaseLease = await firestore.acquirePhoneLease(to);
+        for (let attempt = 0; attempt < 4; attempt++) {
+          try {
+            releaseLease = await firestore.acquirePhoneLease(to);
+            break;
+          } catch (err) {
+            if (attempt === 3) throw err;
+            await new Promise((r) => setTimeout(r, 250));
+          }
+        }
         if (await firestore.hasProcessedMessage(message.id)) {
           processed.add(message.id);
           return { ignored: true, reason: 'duplicate-human-echo' };

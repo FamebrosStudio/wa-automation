@@ -66,13 +66,19 @@ test('reactions, stickers, and casual acknowledgements do not interrupt conversa
     }
     assert.equal(sent.length, beforeReaction, 'acknowledgements never trigger fallback menu');
 
-    // Unknown text triggers fallback at most once, then stays silent
-    await handleIncoming({ id: mid(), type: 'text', text: { body: 'what is the weather today' } }, phone);
-    const afterFirstFallback = sent.length;
-    assert.ok(afterFirstFallback > beforeReaction);
-    const secondUnknown = await handleIncoming({ id: mid(), type: 'text', text: { body: 'still chatting here' } }, phone);
-    assert.equal(secondUnknown.reason, 'fallback-already-sent');
-    assert.equal(sent.length, afterFirstFallback);
+    // Unknown text never interrupts with "Hmm, I am not quite sure..." or Main Menu
+    const unknown1 = await handleIncoming({ id: mid(), type: 'text', text: { body: 'what is the weather today' } }, phone);
+    assert.equal(unknown1.reason, 'unmatched-mid-conversation');
+    const unknown2 = await handleIncoming({ id: mid(), type: 'text', text: { body: 'I am sending you the photo' } }, phone);
+    assert.equal(unknown2.reason, 'unmatched-mid-conversation');
+    const hiLater = await handleIncoming({ id: mid(), type: 'text', text: { body: 'hi' } }, phone);
+    assert.equal(hiLater, undefined);
+    assert.equal(sent.length, beforeReaction, 'mid-conversation messages never re-dump menu or fallback');
+
+    // Quoted reply on an unseen contact is treated as an existing chat and stays silent
+    const quotedRes = await handleIncoming({ id: mid(), type: 'text', text: { body: 'hi' }, context: { id: 'wamid.old123' } }, '919900010099');
+    assert.equal(quotedRes.reason, 'existing-contact-not-enrolled');
+    assert.equal(sent.length, beforeReaction);
     flow.cancelFlow(phone);
   } finally { restore(); }
 });
@@ -97,13 +103,11 @@ test('active flow answers with greetings or keywords do not cancel the flow', as
     await handleIncoming({ id: mid(), type: 'text', text: { body: 'Mumbai' } }, phone);
     assert.equal(flow.getCurrentStep(phone).step, 'product');
 
-    // Media during flow notifies at most once and never dumps Main Menu
+    // Media during flow is recorded silently without interrupting
     const beforeMedia = sent.length;
-    await handleIncoming({ id: mid(), type: 'image', image: { id: 'img1' } }, phone);
-    assert.equal(sent.length, beforeMedia + 1);
-    assert.equal(sent.at(-1).type, 'text');
-    await handleIncoming({ id: mid(), type: 'image', image: { id: 'img2' } }, phone);
-    assert.equal(sent.length, beforeMedia + 1, 'second image does not repeat text-only notice');
+    const imgRes = await handleIncoming({ id: mid(), type: 'image', image: { id: 'img1' } }, phone);
+    assert.equal(imgRes.reason, 'non-text-silent');
+    assert.equal(sent.length, beforeMedia);
     flow.cancelFlow(phone);
   } finally { restore(); }
 });

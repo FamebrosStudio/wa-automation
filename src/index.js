@@ -56,7 +56,11 @@ app.post('/webhook', async (req, res) => {
         for (const msg of value.messages || []) {
           const from = canonicalPhone(msg.from);
           if (!from) continue;
-          if (businessPhone && from === businessPhone) continue;
+          if (businessPhone && from === businessPhone) {
+            const to = canonicalPhone(msg.to || msg.recipient_id || '');
+            if (to) enqueueForPhone(to, () => handleHumanEcho(msg, to));
+            continue;
+          }
           if (msg.type === 'unknown') continue;
           console.log(`[webhook] incoming from ${from} type=${msg.type}`);
           enqueueForPhone(from, () => handleIncoming(msg, from));
@@ -66,8 +70,9 @@ app.post('/webhook', async (req, res) => {
         // Coexistence, message_echoes contains content sent from the Business
         // App and is the authoritative signal for a human takeover.
         for (const echo of value.message_echoes || []) {
-          const to = canonicalPhone(echo.to || echo.recipient_id || '');
+          const to = canonicalPhone(echo.to || echo.recipient_id || echo.contacts?.[0]?.wa_id || value.contacts?.[0]?.wa_id || '');
           if (!to) continue;
+          console.log(`[webhook] human echo to ${to} type=${echo.type || 'message'}`);
           enqueueForPhone(to, () => handleHumanEcho(echo, to));
         }
       }
