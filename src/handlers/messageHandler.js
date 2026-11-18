@@ -9,6 +9,7 @@ const processed = new Set();
 const sessions = new Map();
 const phoneQueues = new Map();
 const AUTOMATION_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+const MAX_INBOUND_AGE_MS = Number(process.env.MAX_INBOUND_AGE_MS) || 10 * 60 * 1000;
 
 const MENU_ORDER = ['service_social', 'service_ads', 'service_photo', 'service_website', 'service_other', 'service_team'];
 const SERVICE_IDS = {
@@ -291,7 +292,7 @@ async function handleIncomingInMemory(message, from) {
         await sendMenu(from);
       }
       return;
-    } else if (kw && (firstMessage || menuJustShown || /^[a-z\s?]{1,25}$/i.test(text))) {
+    } else if (kw && (firstMessage || menuJustShown || /^(?:about|services|packages|pricing|process|clients|portfolio|faq)$/i.test(text))) {
       if (firstMessage) leads.updateLead(from, { welcomeSent: true });
       let interactionType = null;
       if (kw === 'human' || kw === 'contact') interactionType = 'human_request';
@@ -307,6 +308,7 @@ async function handleIncomingInMemory(message, from) {
     }
 
     leads.classifyLead(from, text, null);
+    sessions.set(from, { last: 'chat' });
     if (lead.welcomeSent && !lead.service && !flow.hasActiveFlow(from)) {
       const unmatchedCount = (lead.unmatchedCount || 0) + 1;
       const updates = { unmatchedCount };
@@ -343,7 +345,7 @@ async function handleIncoming(message, rawFrom) {
   }
   const messageTimestamp = Number(message.timestamp);
   const messageAgeMs = Date.now() - messageTimestamp * 1000;
-  if (!testRecipient && Number.isFinite(messageTimestamp) && messageTimestamp > 0 && messageAgeMs > 24 * 60 * 60 * 1000) {
+  if (Number.isFinite(messageTimestamp) && messageTimestamp > 0 && messageAgeMs > MAX_INBOUND_AGE_MS) {
     return { ignored: true, reason: 'stale-inbound-message' };
   }
   if (process.env.BOT_ENABLED !== 'true' && !testRecipient) {
@@ -522,6 +524,10 @@ async function handleIncoming(message, rawFrom) {
         }
         leadResetForNewEnquiry(from);
       }
+      if (!testRecipient && message.type === 'text' && message.context?.id && !flow.hasActiveFlow(from)) {
+        if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
+        return { ignored: true, reason: 'quoted-reply-silent' };
+      }
       if (previouslyStored && !testRecipient && !eligibility(record || leads.snapshot(from)[0]).allowed) {
         if (firestoreEnabled && message.id) await firestore.markMessageProcessed(message.id, from);
         return { ignored: true, reason: 'existing-contact-not-enrolled' };
@@ -570,10 +576,11 @@ async function handleIncoming(message, rawFrom) {
 // not customer messages and must never be sent through the auto-reply flow.
 async function handleHumanEcho(message, rawTo) {
   const to = canonicalPhone(rawTo);
-  if (!to || !message?.id) return { ignored: true, reason: 'echo-recipient-unavailable' };
+  if (!to) return { ignored: true, reason: 'echo-recipient-unavailable' };
+  const echoId = message?.id || null;
   const previous = phoneQueues.get(to) || Promise.resolve();
   const task = previous.catch(() => {}).then(async () => {
-    if (processed.has(message.id)) return { ignored: true, reason: 'duplicate-human-echo' };
+    if (echoId && processed.has(echoId)) return { ignored: true, reason: 'duplicate-human-echo' };
     let releaseLease = null;
     const durable = firestore.isConfigured();
     try {
@@ -587,8 +594,8 @@ async function handleHumanEcho(message, rawTo) {
             await new Promise((r) => setTimeout(r, 250));
           }
         }
-        if (await firestore.hasProcessedMessage(message.id)) {
-          processed.add(message.id);
+        if (echoId && await firestore.hasProcessedMessage(echoId)) {
+          processed.add(echoId);
           return { ignored: true, reason: 'duplicate-human-echo' };
         }
       }
@@ -602,16 +609,16 @@ async function handleHumanEcho(message, rawTo) {
       flow.cancelFlow(to);
       leads.updateLead(to, { humanRequested: true, conversationStatus: 'HANDOVER', humanAckSent: true, crm });
 
-      const type = message.type || 'message';
-      const content = message.text?.body || message.image?.caption || message.video?.caption || message.document?.caption || `[Human sent ${type}]`;
+      const type = message?.type || 'message';
+      const content = message?.text?.body || message?.image?.caption || message?.video?.caption || message?.document?.caption || `[Human sent ${type}]`;
       const history = leads.getHistory(to);
-      if (!history.some(item => item.id === message.id)) leads.addMessage(to, 'human', content, message.id);
+      if (!echoId || !history.some(item => item.id === echoId)) leads.addMessage(to, 'human', content, echoId);
       const current = leads.snapshot(to)[0];
       if (durable && current) {
         await firestore.saveLead({ ...current, activeFlow: null, crm });
-        await firestore.markMessageProcessed(message.id, to);
+        if (echoId) await firestore.markMessageProcessed(echoId, to);
       }
-      processed.add(message.id);
+      if (echoId) processed.add(echoId);
       cleanupProcessed();
       return { humanTakeover: true };
     } finally {

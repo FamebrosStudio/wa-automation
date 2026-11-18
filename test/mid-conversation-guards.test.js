@@ -210,3 +210,43 @@ test('unseen existing-chat signals stay silent and repeated invalid flow inputs 
     assert.equal(sent.length, beforeInvalid + 1);
   } finally { restore(); }
 });
+
+test('old messages, quoted replies on enrolled chats, and mid-chat questions stay silent', async () => {
+  const { sent, leads, restore } = setup();
+  try {
+    const { handleIncoming, handleHumanEcho } = require('../src/handlers/messageHandler');
+
+    // Old message (>10 minutes) is ignored even on the designated test number
+    const staleTest = await handleIncoming({
+      id: mid(),
+      type: 'text',
+      timestamp: String(Math.floor(Date.now() / 1000) - 15 * 60),
+      text: { body: 'hi' },
+    }, '919892506314');
+    assert.equal(staleTest.reason, 'stale-inbound-message');
+    assert.equal(sent.length, 0);
+
+    // Enrolled contact: quoted reply & mid-chat question stay silent
+    const p = '919900010201';
+    await handleIncoming({ id: mid(), type: 'text', text: { body: 'hi' } }, p);
+    const quoted = await handleIncoming({
+      id: mid(),
+      type: 'text',
+      context: { id: 'wamid.earlier' },
+      text: { body: 'Yes this one' },
+    }, p);
+    assert.equal(quoted.reason, 'quoted-reply-silent');
+    // Move past the initial menu with a normal message, then ask a conversational price question
+    await handleIncoming({ id: mid(), type: 'text', text: { body: 'Actually Sulltan called me' } }, p);
+    const afterChat = sent.length;
+    const midQuestion = await handleIncoming({ id: mid(), type: 'text', text: { body: 'what is the price?' } }, p);
+    assert.equal(midQuestion.reason, 'unmatched-mid-conversation');
+    assert.equal(sent.length, afterChat);
+
+    // Human echo without message.id still pauses the contact
+    const p2 = '919900010202';
+    await handleHumanEcho({ type: 'text', text: { body: 'Calling you now' } }, p2);
+    assert.equal(leads.getLead(p2).crm.humanTakeover, true);
+    assert.equal(leads.getLead(p2).crm.botPaused, true);
+  } finally { restore(); }
+});
