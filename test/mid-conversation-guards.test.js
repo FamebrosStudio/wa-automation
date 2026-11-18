@@ -146,6 +146,7 @@ test('webhook ignores messages from the business display phone number itself', a
       handleHumanEcho: async () => {},
     },
   };
+  delete require.cache[require.resolve('../src/config')];
   delete require.cache[require.resolve('../src/index')];
   const app = require('../src/index');
   const server = app.listen(0);
@@ -172,6 +173,7 @@ test('webhook ignores messages from the business display phone number itself', a
     await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
     if (originalCache) require.cache[handlerPath] = originalCache;
     else delete require.cache[handlerPath];
+    delete require.cache[require.resolve('../src/config')];
     delete require.cache[require.resolve('../src/index')];
   }
 });
@@ -249,4 +251,72 @@ test('old messages, quoted replies on enrolled chats, and mid-chat questions sta
     assert.equal(leads.getLead(p2).crm.humanTakeover, true);
     assert.equal(leads.getLead(p2).crm.botPaused, true);
   } finally { restore(); }
+});
+
+test('security headers, strict PATCH validation, and production webhook secret fail-closed', async () => {
+  const prevEnv = process.env.NODE_ENV;
+  const prevSecret = process.env.META_APP_SECRET;
+  const prevUser = process.env.DASHBOARD_USER;
+  const prevPass = process.env.DASHBOARD_PASSWORD;
+  process.env.NODE_ENV = 'production';
+  delete process.env.META_APP_SECRET;
+  process.env.DASHBOARD_USER = 'sec-user';
+  process.env.DASHBOARD_PASSWORD = 'sec-password';
+
+  const leads = require('../src/services/leads');
+  leads.restore([{ phone: '919900010300', lead: { phone: '919900010300', name: 'Sec Lead' }, history: [] }]);
+  const realLoad = Module._load;
+  Module._load = function (request, parent, isMain) {
+    if (parent?.filename.replaceAll('\\', '/').endsWith('/src/index.js') && request === './services/firestore') {
+      return { isConfigured: () => false, loadAll: async () => null, recordId: (v) => Buffer.from(v).toString('base64url') };
+    }
+    return realLoad.call(this, request, parent, isMain);
+  };
+  delete require.cache[require.resolve('../src/config')];
+  delete require.cache[require.resolve('../src/index')];
+  const app = require('../src/index');
+  const server = app.listen(0);
+  try {
+    const { port } = server.address();
+    const base = `http://127.0.0.1:${port}`;
+    const auth = `Basic ${Buffer.from('sec-user:sec-password').toString('base64')}`;
+
+    const webhookRes = await fetch(`${base}/webhook`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ object: 'whatsapp_business_account' }),
+    });
+    assert.equal(webhookRes.status, 503, 'production rejects webhooks when META_APP_SECRET is unset');
+
+    const leadsRes = await fetch(`${base}/leads`, { headers: { authorization: auth } });
+    assert.equal(leadsRes.status, 200);
+    assert.equal(leadsRes.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(leadsRes.headers.get('x-frame-options'), 'DENY');
+    assert.equal(leadsRes.headers.get('cache-control'), 'no-store');
+
+    const id = Buffer.from('919900010300').toString('base64url');
+    const badType = await fetch(`${base}/leads/${id}`, {
+      method: 'PATCH',
+      headers: { authorization: auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ contactType: 'HackerType' }),
+    });
+    assert.equal(badType.status, 400);
+
+    const badBool = await fetch(`${base}/leads/${id}`, {
+      method: 'PATCH',
+      headers: { authorization: auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ botPaused: 'yes' }),
+    });
+    assert.equal(badBool.status, 400);
+  } finally {
+    await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
+    Module._load = realLoad;
+    delete require.cache[require.resolve('../src/config')];
+    delete require.cache[require.resolve('../src/index')];
+    leads.restore([]);
+    if (prevEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = prevEnv;
+    if (prevSecret === undefined) delete process.env.META_APP_SECRET; else process.env.META_APP_SECRET = prevSecret;
+    if (prevUser === undefined) delete process.env.DASHBOARD_USER; else process.env.DASHBOARD_USER = prevUser;
+    if (prevPass === undefined) delete process.env.DASHBOARD_PASSWORD; else process.env.DASHBOARD_PASSWORD = prevPass;
+  }
 });

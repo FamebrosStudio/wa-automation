@@ -24,6 +24,7 @@ function checkAndRecordSendRate(recipient) {
 
 async function send(payload, options = {}) {
   const recipient = canonicalPhone(payload.to);
+  if (!recipient) throw new Error('Automated send suppressed: missing-recipient');
   if (isSuppressedNumber(recipient)) throw new Error('Automated send suppressed: suppressed-number');
   const testRecipient = isAlwaysAutomatedTestNumber(recipient);
   if (process.env.BOT_ENABLED !== 'true' && !options.force && !testRecipient) throw new Error('Sales automation is disabled');
@@ -53,6 +54,7 @@ async function send(payload, options = {}) {
   try {
     const res = await axios.post(url, payload, {
       timeout: 15000,
+      maxRedirects: 0,
       httpsAgent: graphAgent,
       headers: {
         Authorization: `Bearer ${config.whatsappToken}`,

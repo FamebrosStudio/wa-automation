@@ -11,7 +11,21 @@ const { isAlwaysAutomatedTestNumber, canonicalPhone, BLOCKED_TYPES } = require('
 const localCrm = new Map();
 
 const app = express();
-app.use(express.json({ verify: (req, res, buffer) => { req.rawBody = buffer; } }));
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('X-Frame-Options', 'DENY');
+  res.set('Referrer-Policy', 'no-referrer');
+  next();
+});
+app.use(express.json({ limit: '1mb', verify: (req, res, buffer) => { req.rawBody = buffer; } }));
+
+function timingSafeMatch(actual, expected) {
+  if (typeof actual !== 'string' || typeof expected !== 'string') return false;
+  const a = Buffer.from(actual);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 // Health check
 app.get('/', (req, res) => {
@@ -23,9 +37,9 @@ app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
-  if (mode === 'subscribe' && token === config.verifyToken) {
+  if (mode === 'subscribe' && config.verifyToken && timingSafeMatch(String(token || ''), String(config.verifyToken))) {
     console.log('[webhook] verified');
-    return res.status(200).send(challenge);
+    return res.status(200).send(String(challenge || ''));
   }
   return res.sendStatus(403);
 });
@@ -33,11 +47,11 @@ app.get('/webhook', (req, res) => {
 // Webhook receiver
 app.post('/webhook', async (req, res) => {
   const secret = process.env.META_APP_SECRET;
-  if (process.env.VERCEL && !secret) return res.status(503).send('Webhook verification is not configured');
+  if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && !secret) return res.status(503).send('Webhook verification is not configured');
   if (secret) {
     const expected = `sha256=${crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.alloc(0)).digest('hex')}`;
     const actual = req.get('x-hub-signature-256') || '';
-    if (actual.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected))) return res.sendStatus(401);
+    if (!timingSafeMatch(actual, expected)) return res.sendStatus(401);
   }
   try {
     const body = req.body;
@@ -86,9 +100,10 @@ app.post('/webhook', async (req, res) => {
 });
 
 function dashboardAuth(req, res, next) {
+  res.set('Cache-Control', 'no-store');
   if (!config.dashboardPassword) return res.status(503).send('Dashboard disabled: set DASHBOARD_PASSWORD to enable it.');
   const expected = `Basic ${Buffer.from(`${config.dashboardUser}:${config.dashboardPassword}`).toString('base64')}`;
-  if (req.headers.authorization !== expected) {
+  if (!timingSafeMatch(req.headers.authorization || '', expected)) {
     res.set('WWW-Authenticate', 'Basic realm="Lead dashboard"');
     return res.sendStatus(401);
   }
@@ -96,6 +111,7 @@ function dashboardAuth(req, res, next) {
 }
 
 const LEAD_STATUSES = ['Qualified', 'Non-confirmed', 'Non-qualified'];
+const CONTACT_TYPES = ['Unknown', 'New Lead', 'Existing Client', 'Past Client', 'Employee', 'Vendor', 'Partner'];
 function normalizeLeadStatus(lead) {
   if (lead && !LEAD_STATUSES.includes(lead.status)) lead.status = null;
   return lead;
@@ -218,8 +234,12 @@ app.get('/leads/:id', dashboardAuth, async (req, res) => {
 
 app.patch('/leads/:id', dashboardAuth, async (req, res) => {
   if (!safeRecordId(req.params.id)) return res.sendStatus(400);
-  const { status, notes, tags, owner, contactType, botPaused, humanTakeover } = req.body || {};
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) return res.status(400).json({ error: 'Invalid request body' });
+  const { status, notes, tags, owner, contactType, botPaused, humanTakeover } = req.body;
   if (status !== undefined && status !== null && !LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid lead status' });
+  if (contactType !== undefined && !CONTACT_TYPES.includes(contactType)) return res.status(400).json({ error: 'Invalid contact type' });
+  if (botPaused !== undefined && typeof botPaused !== 'boolean') return res.status(400).json({ error: 'botPaused must be boolean' });
+  if (humanTakeover !== undefined && typeof humanTakeover !== 'boolean') return res.status(400).json({ error: 'humanTakeover must be boolean' });
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > 5000)) return res.status(400).json({ error: 'Notes must be text up to 5000 characters' });
   if (owner !== undefined && (typeof owner !== 'string' || owner.length > 120)) return res.status(400).json({ error: 'Owner must be text up to 120 characters' });
   if (tags !== undefined && (!Array.isArray(tags) || tags.length > 30 || tags.some((tag) => typeof tag !== 'string' || tag.length > 40))) {
